@@ -3,6 +3,7 @@ Library to fetch and process directories from ncbi
 '''
 
 import ftplib
+import os.path
 from urlparse import urlparse
 import microbedb.config_singleton
 from .models import *
@@ -100,7 +101,10 @@ class ncbi_fetcher():
         print "created: {}".format(created)
 
         for line in checksums:
+            filename, md5 = self.separate_md5line(line)
             print line
+            matches = GenomeProject_Checksum.verify(filename, md5)
+            print "Found: {} : {} : {}".format(filename, md5, matches)
 
 
     def map_summary(self, line):
@@ -130,3 +134,11 @@ class ncbi_fetcher():
             }
 
         return assembly
+
+    # Separate an NCBI checksum file line in to pieces
+    def separate_md5line(self, line):
+        pieces = line.split()
+
+        pathbit, filename = os.path.split(pieces[1])
+
+        return filename, pieces[0]

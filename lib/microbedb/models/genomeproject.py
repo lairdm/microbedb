@@ -3,6 +3,7 @@ from . import Base, fetch_session
 from .version import Version
 from sqlalchemy import Column, ForeignKey, Integer, String, Text, Date, Enum, Float, Boolean
 from sqlalchemy.orm import relationship
+from sqlalchemy import exc as sqlalcexcept
 import microbedb.config_singleton
 import pprint
 
@@ -41,7 +42,7 @@ class GenomeProject(Base):
 
         # We found a GenomeProject, return it
         if gp is not None:
-            return (gp, False)
+            return gp, False
 
         # We didn't find a GenomeProject, so create one
         try:
@@ -58,11 +59,15 @@ class GenomeProject(Base):
             session.add(gp)
             session.commit()
 
+        except sqlalcexcept.IntegrityError as e:
+            print "Insertion error: " + str(e)
+            session.rollback()
+            return None, False
         except Exception as e:
             print "Error creating GenomeProject obj: " + str(e)
-            return (None, False)
+            return None, False
 
-        return (gp, True)
+        return gp, True
 
     @classmethod
     def findGP(cls, assembly_accession, asm_name, version='current'):
@@ -100,6 +105,33 @@ class GenomeProject_Meta(Base):
 
 class GenomeProject_Checksum(Base):
     __tablename__ = 'genomeproject_checksum'
-    gpv_id = Column(Integer, primary_key=True)
-    file = Column(String(24))
+#    gpv_id = Column(Integer, primary_key=True)
+    version = Column(Integer, ForeignKey("Version.version_id"), primary_key=True)
+    filename = Column(String(24), primary_key=True)
     checksum = Column(String(32))
+
+    #
+    # Check if we have a checksum for a file in the database and return
+    # true or false if it matches
+    #
+    @classmethod
+    def verify(cls, filename, checksum, version='current'):
+        session = fetch_session()
+
+        version = Version.fetch(version)
+
+        # Try to fetch the GenomeProject if it exists
+        try:
+            gpcs = session.query(GenomeProject_Checksum).filter(GenomeProject_Checksum.version == version,
+                                                                GenomeProject_Checksum.filename == filename).first()
+
+        except Exception as e:
+            print "Error looking up GenomeProject: " + str(e)
+            return False
+        
+        # We found a checksum for this file, return if they match
+        if gpcs is not None:
+            return gpcs.checksum == checksum
+
+        # Nothing found, return false
+        return False

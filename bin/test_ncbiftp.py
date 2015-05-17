@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import sys, argparse, os
 MYPATH = os.path.abspath(os.path.dirname(__file__))
 PARENTPATH = os.path.abspath(os.path.dirname(MYPATH))

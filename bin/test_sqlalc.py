@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import sys, argparse, os
 PARENTPATH = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 sys.path.append(os.path.join(PARENTPATH, 'lib'))

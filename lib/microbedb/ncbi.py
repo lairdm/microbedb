@@ -97,15 +97,31 @@ class ncbi_fetcher():
         self.ftp.retrlines("RETR {}".format(url_pieces.path), checksums.append)
 
         gp, created = GenomeProject.find_or_create(create_version='latest', **assembly)
+
+        if not gp:
+            raise Exception("Genome couldn't be created, check logs")
+
         print gp
         print "created: {}".format(created)
 
+        genome_changed = True if created else False
         for line in checksums:
             filename, md5 = self.separate_md5line(line)
             print line
-            matches = GenomeProject_Checksum.verify(filename, md5)
-            print "Found: {} : {} : {}".format(filename, md5, matches)
+            if not GenomeProject_Checksum.verify(filename, md5):
+                genome_changed = True
+            print "Found: {} : {} : {}".format(filename, md5, genome_changed)
 
+        if genome_changed:
+            self.update_genome(gp, checksums)
+        else:
+            self.clone_genome(gp)
+
+    def clone_genome(self, gp):
+        pass
+
+    def update_genome(self, gp, checksums):
+        pass
 
     def map_summary(self, line):
         pieces = line.split("\t")

@@ -96,15 +96,11 @@ class ncbi_fetcher():
         checksums = []
         self.ftp.retrlines("RETR {}".format(url_pieces.path), checksums.append)
 
-        gp, created = GenomeProject.find_or_create(create_version='latest', **assembly)
-
-        if not gp:
-            raise Exception("Genome couldn't be created, check logs")
+        gp = GenomeProject.find(**assembly)
 
         print gp
-        print "created: {}".format(created)
 
-        genome_changed = True if created else False
+        genome_changed = True if not gp else False
         for line in checksums:
             filename, md5 = self.separate_md5line(line)
             print line
@@ -113,15 +109,37 @@ class ncbi_fetcher():
             print "Found: {} : {} : {}".format(filename, md5, genome_changed)
 
         if genome_changed:
+            # Start fresh
+            gp = GenomeProject.create_gp(version='latest', **assembly)
             self.update_genome(gp, checksums)
+        elif not created:
+            # It hasn't changed but a record already
+            # seems to exist, we'll skip this for now but
+            # we might want to do some checking here in the future
+            pass
         else:
-            self.clone_genome(gp)
+            self.copy_genome(gp)
 
-    def clone_genome(self, gp):
-        pass
+    #
+    # The genome project hasn't changed, therefore we need to copy
+    # the entries to the new version and symlink the old files
+    #
+    def copy_genome(self, gp):
+        gp.clone_gp()
 
+        print "New gpv_id " + str(gp.gpv_id)
+
+        # We'll need to do something with the replicons and such here
+
+    #
+    # We have an updated genome, grab the files,
+    # and parse the files
+    #
     def update_genome(self, gp, checksums):
         pass
+
+        # Attempt to get the metadata from wherever it come from and
+        # insert it here
 
     def map_summary(self, line):
         pieces = line.split("\t")

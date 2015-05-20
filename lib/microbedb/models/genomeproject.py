@@ -3,6 +3,7 @@ from . import Base, fetch_session
 from .version import Version
 from sqlalchemy import Column, ForeignKey, Integer, String, Text, Date, Enum, Float, Boolean
 from sqlalchemy.orm import relationship
+from sqlalchemy.orm.session import make_transient
 from sqlalchemy import exc as sqlalcexcept
 import microbedb.config_singleton
 import pprint
@@ -24,11 +25,9 @@ class GenomeProject(Base):
     master_gpv = Column(Integer)
 
     @classmethod
-    def find_or_create(cls, version='current', create_version='current', **kwargs):
+    def find(cls, version='current', **kwargs);
         session = fetch_session()
-
         version = Version.fetch(version)
-        create_version = Version.fetch(create_version)
 
         # Try to fetch the GenomeProject if it exists
         try:
@@ -38,23 +37,40 @@ class GenomeProject(Base):
 
         except Exception as e:
             print "Error looking up GenomeProject: " + str(e)
-            return (None, False)
+            return None
+
+        return gp
+
+    @classmethod
+    def find_or_create(cls, version='current', create_version='current', **kwargs):
+
+        gp = GenomeProject.find(version=version, **kwargs)
 
         # We found a GenomeProject, return it
         if gp is not None:
             return gp, False
 
         # We didn't find a GenomeProject, so create one
+        gp = GenomeProject.create_gp(version=create_version, **kwargs)
+
+        if gp:
+            return gp, True
+        else:
+            return None, False
+
+    @classmethod
+    def create_gp(cls, version='current', **kwargs):
+        session = fetch_session()
+
         try:
-            cfg = microbedb.config_singleton.getConfig()
             gp = GenomeProject()
-            for col in GenomeProject.__table__.columns:
+            for col in GenomeProject.__table__columns:
                 prop = gp.__mapper__._columntoproperty[col].key
                 if prop in kwargs:
                     setattr(gp, prop, kwargs[prop])
 
-            gp.version_id = create_version
-            gp.gpv_directory = os.path.join(Version.fetch_path(create_version), kwargs['assembly_accession'] + '_' + kwargs['asm_name'])
+            gp.version_id = Version.fetch(version)
+            gp.gpv_directory = os.path.join(Version.fetch_path(gp.version_id), kwargs['assembly_accession'] + '_' + kwargs['asm_name'])
 
             session.add(gp)
             session.commit()
@@ -62,12 +78,14 @@ class GenomeProject(Base):
         except sqlalcexcept.IntegrityError as e:
             print "Insertion error: " + str(e)
             session.rollback()
-            return None, False
+            return None
         except Exception as e:
             print "Error creating GenomeProject obj: " + str(e)
-            return None, False
+            return None
 
-        return gp, True
+        return gp
+
+
 
     @classmethod
     def findGP(cls, assembly_accession, asm_name, version='current'):
@@ -81,6 +99,44 @@ class GenomeProject(Base):
                                                              version_id=version)
         except:
             return None
+
+    def clone_gp(self, version='latest'):
+        session = fetch_session()
+
+        try:
+            # See if we have a GenomeProject_Meta for this GP
+            gp_meta = session.query(GenomeProject_Meta).filter(GenomeProject_Meta.gpv_id == self.gpv_id).first()
+
+            old_path = self.gpv_directory
+            
+            # Remove the GP object from the session and
+            # unlink it's primary key
+            session.expunge(self)
+            make_transient(self)
+            self.gpv_id = None
+            
+            # Update the session with the new version,
+            # add the GP back to the session and commit it
+            version = Version.fetch(version)
+            self.version_id = version
+            self.gpv_directory = os.path.join(Version.fetch_path(version), self.assembly_accession + '_' + self.asm_name)
+
+            session.add(self)
+            session.commit()
+
+            # We've saved the object, make the file system symlink
+            if os.path.exists(old_path):
+                os.symlink(old_path, self.gpv_directory)
+
+            # If we have a metadata object and we've successfully
+            # updated ourself, clone the gp_meta object
+            if gp_meta:
+                gp_meta.clone_gpmeta(self.gpv_id)
+
+        except Exception as e:
+            print "Error cloning ession: " + str(e)
+            session.rollback()
+            raise e
 
 class GenomeProject_Meta(Base):
     __tablename__ = 'genomeproject_meta'
@@ -100,8 +156,29 @@ class GenomeProject_Meta(Base):
     salinity = Column(Text)
     oxygen_req = Column(Enum('unknown', 'aerobic', 'microaerophilic', 'facultative', 'anaerobic'), default='unknown')
     chromosome_num = Column(Integer, default=0)
-    plasmic_num = Column(Integer, default=0)
+    plasmid_num = Column(Integer, default=0)
     contig_num = Column(Integer, default=0)
+
+    def clone_gpmeta(self, gpv_id):
+        session = fetch_session()
+
+        try:
+            # Remove the GP_Meta object from the session and
+            # unlink it's primary key
+            session.expunge(self)
+            make_transient(self)
+            self.gpv_id = gpv_id
+            
+            # Update the session,
+            # add the GP back to the session and commit it
+            session.add(self)
+            session.commit()
+
+        except Exception as e:
+            print "Error cloning ession: " + str(e)
+            session.rollback()
+            raise e
+
 
 class GenomeProject_Checksum(Base):
     __tablename__ = 'genomeproject_checksum'

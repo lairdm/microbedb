@@ -22,7 +22,7 @@ class GenomeProject(Base):
     submitter = Column(Text)
     release_date = Column(Date)
     gpv_directory = Column(Text)
-    master_gpv = Column(Integer)
+    prev_gpv = Column(Integer)
 
     @classmethod
     def find(cls, version='current', **kwargs);
@@ -108,6 +108,7 @@ class GenomeProject(Base):
             gp_meta = session.query(GenomeProject_Meta).filter(GenomeProject_Meta.gpv_id == self.gpv_id).first()
 
             old_path = self.gpv_directory
+            old_gpv_id = self.gpv_id
             
             # Remove the GP object from the session and
             # unlink it's primary key
@@ -120,6 +121,7 @@ class GenomeProject(Base):
             version = Version.fetch(version)
             self.version_id = version
             self.gpv_directory = os.path.join(Version.fetch_path(version), self.assembly_accession + '_' + self.asm_name)
+            self.prev_gpv = old_gpv_id
 
             session.add(self)
             session.commit()

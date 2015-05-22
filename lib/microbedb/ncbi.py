@@ -4,6 +4,7 @@ Library to fetch and process directories from ncbi
 
 import ftplib
 import gzip
+from Bio import SeqIO
 import os.path
 from urlparse import urlparse
 import microbedb.config_singleton
@@ -121,6 +122,8 @@ class ncbi_fetcher():
             # it, here
 
             self.fetch_genome(gp, url_pieces.path, checksums)
+
+            self.parse_replicons(gp)
         else:
             self.copy_genome(gp)
 
@@ -134,6 +137,7 @@ class ncbi_fetcher():
         print "New gpv_id " + str(gp.gpv_id)
 
         # We'll need to do something with the replicons and such here
+        # clone them probably
 
     #
     # We have an updated genome, grab the files,
@@ -173,6 +177,18 @@ class ncbi_fetcher():
                 print "Exception inserting checksum for {}: ".format(filename) + str(e)
                 session.rollback()
                 raise e
+
+    def parse_replicons(self, gp):
+
+        genbank_file = "{}/{}_{}_genomic.gbff".format(gp.gpv_directory, gp.assembly_accession, gp.asm_name)
+
+        if not os.path.exists(genbank_file):
+            raise "Genbank file for {}_{} (gpv_id {}) doesn't exist".format(gp.assembly_accession, gp.asm_name, gp.gpv_id)
+        with open(genbank_file, 'rU') as infile:
+            for record in SeqIO.parse(infile, "genbank"):
+                print dir(record)
+                print record.id
+                print record.description
 
     def map_summary(self, line):
         pieces = line.split("\t")

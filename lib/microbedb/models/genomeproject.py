@@ -25,7 +25,7 @@ class GenomeProject(Base):
     prev_gpv = Column(Integer)
 
     @classmethod
-    def find(cls, version='current', **kwargs);
+    def find(cls, version='current', **kwargs):
         session = fetch_session()
         version = Version.fetch(version)
 
@@ -64,7 +64,7 @@ class GenomeProject(Base):
 
         try:
             gp = GenomeProject()
-            for col in GenomeProject.__table__columns:
+            for col in GenomeProject.__table__.columns:
                 prop = gp.__mapper__._columntoproperty[col].key
                 if prop in kwargs:
                     setattr(gp, prop, kwargs[prop])
@@ -185,7 +185,7 @@ class GenomeProject_Meta(Base):
 class GenomeProject_Checksum(Base):
     __tablename__ = 'genomeproject_checksum'
 #    gpv_id = Column(Integer, primary_key=True)
-    version = Column(Integer, ForeignKey("Version.version_id"), primary_key=True)
+    version = Column(Integer, primary_key=True)
     filename = Column(String(24), primary_key=True)
     checksum = Column(String(32))
 

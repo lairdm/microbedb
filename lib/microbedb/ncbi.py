@@ -3,6 +3,7 @@ Library to fetch and process directories from ncbi
 '''
 
 import ftplib
+import gzip
 import os.path
 from urlparse import urlparse
 import microbedb.config_singleton
@@ -90,11 +91,12 @@ class ncbi_fetcher():
             print "No ftp path for genome {}/{} found!".format(current_genome, assembly['assembly_accession'])
             return
 
-        summary_url = "{}/md5checksums.txt".format(assembly['ftp_path'])
-        url_pieces = urlparse(summary_url)
+        url_pieces = urlparse(assembly['ftp_path'])
         print url_pieces
+        summary_url = "{}/md5checksums.txt".format(url_pieces.path)
+        print summary_url
         checksums = []
-        self.ftp.retrlines("RETR {}".format(url_pieces.path), checksums.append)
+        self.ftp.retrlines("RETR {}".format(summary_url), checksums.append)
 
         gp = GenomeProject.find(**assembly)
 
@@ -111,12 +113,14 @@ class ncbi_fetcher():
         if genome_changed:
             # Start fresh
             gp = GenomeProject.create_gp(version='latest', **assembly)
-            self.update_genome(gp, checksums)
-        elif not created:
-            # It hasn't changed but a record already
-            # seems to exist, we'll skip this for now but
-            # we might want to do some checking here in the future
-            pass
+
+            if not gp:
+                raise Exception("We had a prolem making the GenomeProject")
+
+            # Fetch metadate from source or clone it from current version if we have
+            # it, here
+
+            self.fetch_genome(gp, url_pieces.path, checksums)
         else:
             self.copy_genome(gp)
 
@@ -133,13 +137,42 @@ class ncbi_fetcher():
 
     #
     # We have an updated genome, grab the files,
-    # and parse the files
+    # and parse them
     #
-    def update_genome(self, gp, checksums):
-        pass
+    def fetch_genome(self, gp, ftp_path, checksums):
+        session = fetch_session()
 
-        # Attempt to get the metadata from wherever it come from and
-        # insert it here
+        if not os.path.exists(gp.gpv_directory):
+            print "making directory {}".format(gp.gpv_directory)
+            os.makedirs(gp.gpv_directory)
+            
+        for line in checksums:
+            filename, md5 = self.separate_md5line(line)
+
+            try:
+                # Retreive the genome file from ncbi
+                local_filename = "{}/{}".format(gp.gpv_directory, filename)
+                print "Using local filename {}".format(local_filename)
+                self.ftp.retrbinary("RETR {}/{}".format(ftp_path, filename),
+                                    open(local_filename,'wb').write)
+
+                # Insert the checksum
+                gpcs = GenomeProject_Checksum(filename=filename, checksum=md5, version=Version.fetch("latest"))
+                session.add(gpcs)
+                session.commit()
+
+                # Unzip the file
+                with gzip.open(local_filename, 'rb') as infile:
+                    with open(local_filename[:-3], 'w') as outfile:
+                        for line in infile:
+                            outfile.write(line)
+
+                # Parse out replicons here
+
+            except Exception as e:
+                print "Exception inserting checksum for {}: ".format(filename) + str(e)
+                session.rollback()
+                raise e
 
     def map_summary(self, line):
         pieces = line.split("\t")

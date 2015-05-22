@@ -27,9 +27,11 @@ def fetch_session():
     return session
 
 from genomeproject import GenomeProject, GenomeProject_Meta, GenomeProject_Checksum
+from replicon import Replicon
 from version import Version
 
 __all__ = ['GenomeProject', 'GenomeProject_Meta', 'GenomeProject_Checksum',
+           'Replicon',
            'Version',
            'fetch_session'
     ]

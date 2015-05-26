@@ -7,6 +7,7 @@ LIBPATH = os.path.join(PARENTPATH, 'lib')
 sys.path.append(LIBPATH)
 import microbedb.config_singleton
 import microbedb.db_singleton
+from microbedb.logger_singleton import initLogger
 from microbedb.ncbi import ncbi_fetcher
 import pprint
 
@@ -18,6 +19,8 @@ if __name__ == "__main__":
     opts = parser.parse_args()
 
     cfg = microbedb.config_singleton.initConfig(opts.config)
+
+    initLogger(default_path=cfg.logger_cfg)
     conn = microbedb.db_singleton.initDB()
 
     fetcher = ncbi_fetcher('/mypath')

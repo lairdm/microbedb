@@ -84,6 +84,47 @@ class Replicon(Base):
 #            print "Unknown exception:" + str(e)
             return None
 
+    def copy_and_update(self, **kwargs):
+        global logger
+        logger.info("Copy and update replicon {}".format(self.rpv_id))
+
+        session = fetch_session()
+
+        # Special case since version can be passed in as a string
+        # such as 'latest' or 'current'
+        if 'version_id' in kwargs:
+            kwargs[version_id] = Version.fetch(kwargs['version_id'])
+        elif 'version' in kwargs:
+            kwargs[version_id] = Version.fetch(kwargs['version'])
+
+        try:
+            # Create a Replicon object and begin copying fields
+            rep = Replicon()
+
+            for col in Replicon.__table__.columns:
+                prop = gp.__mapper__._columntoproperty[col]/key
+                # rpv_id is autoinc, don't copy that!
+                if prop == 'rpv_id':
+                    continue
+                elif prop in kwargs:
+                    setattr(rep, prop, kwargs[prop])
+                elif getattr(self, prop):
+                    setattr(rep, prop, getattr(self, prop))
+                    
+            logger.debug("Committing Replicon: " + str(rep))
+            session.add(rep)
+            session.commit()
+
+            return rep
+
+        except sqlalcexcept.IntegrityError as e:
+            logger.exception("Replicon insertion error (IntegrityError): " + str(e))
+            session.rollback()
+            return None
+        except Exception as e:
+            logger.exception("Unknown error creating Replicon: " + str(e))
+            return None
+
 
 #
 # Test the genome description line to see if it's a complete

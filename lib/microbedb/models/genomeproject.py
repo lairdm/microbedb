@@ -154,6 +154,11 @@ class GenomeProject(Base):
             session.add(self)
             session.commit()
 
+            rep_params = {'version_id': version, 'gpv_id': self.gpv_id}
+            for rep in session.query(Replicon).filter(Replicon.gpv_id == old_gpv_id):
+                logger.debug("Copying replicon {}".format(rep.rpv_id))
+                rep.copy_and_update(**rep_params)
+
             # We've saved the object, make the file system symlink
             if os.path.exists(old_path):
                 logger.debug("Making symlink from {} to {}".format(old_path, self.gpv_directory))

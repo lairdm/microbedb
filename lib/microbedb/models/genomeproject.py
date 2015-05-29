@@ -166,7 +166,7 @@ class GenomeProject(Base):
                 gpcs.copy_and_update(**update_params)
 
             # We've saved the object, make the file system symlink
-            if os.path.exists(old_path):
+            if os.path.exists(old_path) and self.verify_basedir():
                 logger.debug("Making symlink from {} to {}".format(old_path, self.gpv_directory))
                 os.symlink(old_path, self.gpv_directory)
             else:
@@ -183,6 +183,37 @@ class GenomeProject(Base):
 #            print "Error cloning ession: " + str(e)
             session.rollback()
             raise e
+
+
+    def verify_basedir(self):
+        global logger
+
+        basedir = os.path.join(Version.fetch_path(self.version_id), self.genome_name)
+
+        try:
+            if not os.path.exists(basedir):
+                os.makedirs(basedir)
+
+            return True
+
+        except Exception as e:
+            logger.exception("Error making basedir {} for gpv_id {}".format(basedir, self.gpv_id))
+            return False
+
+    def mkpath(self):
+        global logger
+        logger.debug("Making path for gpv_id {}, path {}".format(self.gpv_id, self.gpv_directory))
+
+        try:
+            if not os.path.exists(self.gpv_directory):
+                os.makedirs(self.gpv_directory)
+
+            return True
+
+        except Exception as e:
+            logger.exception("Error creating path for gpv_id {}, path {}".format(self.gpv_id, self.gpv_directory))
+            return False
+
 
 class GenomeProject_Meta(Base):
     __tablename__ = 'genomeproject_meta'

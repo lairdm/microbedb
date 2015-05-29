@@ -1,10 +1,13 @@
 import os
+import logging
 from . import Base, fetch_session
 from sqlalchemy import Column, ForeignKey, Integer, String, Text, Date, Enum, Float, Boolean
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql.expression import desc
 from sqlalchemy.sql import func
 import microbedb.config_singleton
+
+logger = logging.getLogger(__name__)
 
 class Version(Base):
     __tablename__ = 'version'
@@ -62,6 +65,24 @@ class Version(Base):
         session = fetch_session()
 
         try:
+
             return session.query(Version).filter(Version.version_id == version).first().dl_directory
         except:
             return None
+
+    @classmethod
+    def mkpath(cls, version):
+        global logger
+
+        path = Version.fetch_path(version)
+        logger.debug("Making version {} path {}".format(version, path))
+
+        try:
+            if not os.path.exists(path):
+                os.makedirs(path)
+
+            return True
+
+        except Exception as e:
+            logger.exception("Error creating version path for version {}, path {}:".format(version, path))
+            return False

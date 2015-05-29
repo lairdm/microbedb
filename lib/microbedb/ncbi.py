@@ -96,7 +96,6 @@ class ncbi_fetcher():
         # Fetch the summary file with the checksums
         if not assembly['ftp_path']:
             self.logger.error("No FTP path for genome {}/{}".format(current_genome, assembly['assembly_accession']))
-            #            print "No ftp path for genome {}/{} found!".format(current_genome, assembly['assembly_accession'])
             return
 
         url_pieces = urlparse(assembly['ftp_path'])
@@ -148,15 +147,15 @@ class ncbi_fetcher():
     # The genome project hasn't changed, therefore we need to copy
     # the entries to the new version and symlink the old files
     #
+    # We'll clone the GP, and in that routine the Replicons should
+    # automatically get cloned as well
+    #
     def copy_genome(self, gp):
         self.logger.info("Copying GenomeProject {}".format(gp.gpv_id))
         gp.clone_gp()
 
         self.logger.debug("New gpv_id: {}".format(gp.gpv_id))
         print "New gpv_id " + str(gp.gpv_id)
-
-        # We'll need to do something with the replicons and such here
-        # clone them probably
 
     #
     # We have an updated genome, grab the files,

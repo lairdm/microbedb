@@ -2,6 +2,7 @@ import os
 import logging
 from . import Base, fetch_session
 from .version import Version
+from .replicon import Replicon
 from sqlalchemy import Column, ForeignKey, Integer, String, Text, Date, Enum, Float, Boolean
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.session import make_transient
@@ -154,15 +155,22 @@ class GenomeProject(Base):
             session.add(self)
             session.commit()
 
-            rep_params = {'version_id': version, 'gpv_id': self.gpv_id}
+            # Clone the replicons as we clone the GP record
+            update_params = {'version_id': version, 'gpv_id': self.gpv_id}
             for rep in session.query(Replicon).filter(Replicon.gpv_id == old_gpv_id):
                 logger.debug("Copying replicon {}".format(rep.rpv_id))
-                rep.copy_and_update(**rep_params)
+                rep.copy_and_update(**update_params)
+
+            for gpcs in session.query(GenomeProject_Checksum).filter(GenomeProject_Checksum.gpv_id == old_gpv_id):
+                logger.debug("Copying GP_Checksum for file {}".format(gpcs.filename))
+                gpcs.copy_and_update(**update_params)
 
             # We've saved the object, make the file system symlink
             if os.path.exists(old_path):
                 logger.debug("Making symlink from {} to {}".format(old_path, self.gpv_directory))
                 os.symlink(old_path, self.gpv_directory)
+            else:
+                logger.error("We couldn't find the old path {} to make the symlink from, this is a problem".format(old_path))
 
             # If we have a metadata object and we've successfully
             # updated ourself, clone the gp_meta object
@@ -261,6 +269,45 @@ class GenomeProject_Checksum(Base):
     filename = Column(String(24), primary_key=True)
     checksum = Column(String(32))
     gpv_id = Column(Integer)
+
+    def copy_and_update(self, **kwargs):
+        global logger
+        logger.info("Copy and update GP_Checksum file: {}, version: {}".format(self.filename, self.version))
+
+        session = fetch_session()
+        
+        # Special case since version can be passed in as a string
+        # such as 'latest' or 'current'
+        if 'version_id' in kwargs:
+            kwargs['version'] = Version.fetch(kwargs['version_id'])
+        elif 'version' in kwargs:
+            kwargs['version'] = Version.fetch(kwargs['version'])
+
+        try:
+            # Create a GP_Checksum object and begin copying fields
+            gpcs = GenomeProject_Checksum()
+
+            for col in GenomeProject_Checksum.__table__.columns:
+                prop = gpcs.__mapper__._columntoproperty[col].key
+                if prop in kwargs:
+                    setattr(gpcs, prop, kwargs[prop])
+                elif getattr(self, prop):
+                    setattr(gpcs, prop, getattr(self, prop))
+                    
+            logger.debug("Committing GP_Checksum: " + str(gpcs))
+            session.add(gpcs)
+            session.commit()
+
+            return gpcs
+
+        except sqlalcexcept.IntegrityError as e:
+            logger.exception("GP_Checksum insertion error (IntegrityError): " + str(e))
+            session.rollback()
+            return None
+        except Exception as e:
+            logger.exception("Unknown error creating GP_Checksum: " + str(e))
+            return None
+
 
     #
     # Check if we have a checksum for a file in the database and return

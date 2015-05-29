@@ -93,16 +93,16 @@ class Replicon(Base):
         # Special case since version can be passed in as a string
         # such as 'latest' or 'current'
         if 'version_id' in kwargs:
-            kwargs[version_id] = Version.fetch(kwargs['version_id'])
+            kwargs['version_id'] = Version.fetch(kwargs['version_id'])
         elif 'version' in kwargs:
-            kwargs[version_id] = Version.fetch(kwargs['version'])
+            kwargs['version_id'] = Version.fetch(kwargs['version'])
 
         try:
             # Create a Replicon object and begin copying fields
             rep = Replicon()
 
             for col in Replicon.__table__.columns:
-                prop = gp.__mapper__._columntoproperty[col]/key
+                prop = rep.__mapper__._columntoproperty[col].key
                 # rpv_id is autoinc, don't copy that!
                 if prop == 'rpv_id':
                     continue

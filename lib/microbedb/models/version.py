@@ -17,6 +17,9 @@ class Version(Base):
     used_by = Column(Text)
     is_current = Column(Boolean, default=False)
 
+    def __str__(self):
+        return "Version(): {}, is_current {}, dl_directory: {}".format(self.version_id, self.is_current, self.dl_directory)
+
     @classmethod
     def latest(cls):
         session = fetch_session()
@@ -72,6 +75,37 @@ class Version(Base):
             return session.query(Version).filter(Version.version_id == version).first().dl_directory
         except:
             return None
+
+    @classmethod
+    def set_current(cls, version):
+        global logger
+        version = cls.fetch(version)
+        if not version:
+            logger.error("Error, we couldn't get the version!")
+            return False
+
+        session = fetch_session()
+
+        try:
+            for v in session.query(Version).filter(Version.is_current == True):
+                v.is_current = False
+
+            # And now get the requested version and update it if we fine it
+            v = session.query(Version).filter(Version.version_id == version).first()
+            if v:
+                v.is_current = True
+                logger.info("New live version is {}".format(version))
+
+            session.commit()
+
+            # TODO: Set the symlink here
+
+            return True
+
+        except Exception as e:
+            logger.exception("Error setting new current version")
+            session.rollback()
+            return False
 
     @classmethod
     def mkpath(cls, version):

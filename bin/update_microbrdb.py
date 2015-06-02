@@ -33,6 +33,9 @@ def main():
 
     fetcher.sync_version()
 
+    # We're done so set the current microbedb version to the new current one
+    Version.set_current(version)
+
 def argParser():
 
     parser = argparse.ArgumentParser(description='Test the SQL Alchemy mapper')

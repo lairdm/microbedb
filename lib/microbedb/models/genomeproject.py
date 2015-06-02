@@ -21,13 +21,17 @@ class GenomeProject(Base):
     version_id = Column(Integer, default=0)
     bioproject = Column(String(14))
     biosample = Column(String(14))
-    taxon_id = Column(Integer)
+    taxid = Column(Integer)
+    species_taxid = Column(Integer)
     org_name = Column(Text)
     infraspecific_name = Column(String(24))
     submitter = Column(Text)
     release_date = Column(Date)
     gpv_directory = Column(Text)
     prev_gpv = Column(Integer)
+
+    def __str__(self):
+        return "GenomeProject(): gpv_id {}, genome: {}/{}_{}, version: {}".format(self.gpv_id, self.genome_name, self.assembly_accession, self.asm_name, self.version_id)
 
     @classmethod
     def find(cls, version='current', **kwargs):
@@ -155,7 +159,15 @@ class GenomeProject(Base):
             session.add(self)
             session.commit()
 
-            # Clone the replicons as we clone the GP record
+            # If we have a metadata object and we've successfully
+            # updated ourself, clone the gp_meta object
+            if gp_meta:
+                logger.debug("We have metadata, clone: {}".format(gp_meta))
+#                print gp_meta
+                gp_meta.clone_gpmeta(self.gpv_id) 
+#                print gp_meta
+
+           # Clone the replicons as we clone the GP record
             update_params = {'version_id': version, 'gpv_id': self.gpv_id}
             for rep in session.query(Replicon).filter(Replicon.gpv_id == old_gpv_id):
                 logger.debug("Copying replicon {}".format(rep.rpv_id))
@@ -172,19 +184,17 @@ class GenomeProject(Base):
             else:
                 logger.error("We couldn't find the old path {} to make the symlink from, this is a problem".format(old_path))
 
-            # If we have a metadata object and we've successfully
-            # updated ourself, clone the gp_meta object
-            if gp_meta:
-                logger.debug("We have metadata, clone!")
-                gp_meta.clone_gpmeta(self.gpv_id)
-
         except Exception as e:
             logger.exception("Exception cloning GenomeProject: " + str(e))
 #            print "Error cloning ession: " + str(e)
             session.rollback()
             raise e
 
-
+    
+    #
+    # Since NCBI stores genome projects grouped by species, we need to ensure
+    # a genome's base directory is there
+    #
     def verify_basedir(self):
         global logger
 
@@ -235,6 +245,9 @@ class GenomeProject_Meta(Base):
     chromosome_num = Column(Integer, default=0)
     plasmid_num = Column(Integer, default=0)
     contig_num = Column(Integer, default=0)
+
+    def __str__(self):
+        return "GenomeProject_Meta(): gpv_id {}, chromosome: {}, plasmid: {}, contig: {}".format(self.gpv_id, self.chromosome_num, self.plasmid_num, self.contig_num)
 
     def clone_gpmeta(self, gpv_id):
         global logger
@@ -301,6 +314,9 @@ class GenomeProject_Checksum(Base):
     checksum = Column(String(32))
     gpv_id = Column(Integer)
 
+    def __str__(self):
+        return "GenomeProject_Checksum(): gpv_id {}, version: {}, filename: {}".format(self.gpv_id, self.version, self.filename)
+
     def copy_and_update(self, **kwargs):
         global logger
         logger.info("Copy and update GP_Checksum file: {}, version: {}".format(self.filename, self.version))
@@ -359,9 +375,11 @@ class GenomeProject_Checksum(Base):
         
             # We found a checksum for this file, return if they match
             if gpcs is not None:
+                logger.debug("Comparing db version: {} to ftp version: {}".format(gpcs.checksum, checksum))
                 return gpcs.checksum == checksum
 
             # Nothing found, return false
+            logger.debug("Didn't find a checksum for {}, version {}".format(filename, version))
             return False
 
         except Exception as e:

@@ -28,6 +28,9 @@ class Replicon(Base):
     rna_num = Column(Integer)
     file_types = Column(Text)
 
+    def __str__(self):
+        return "Replicon(): rpv_id: {}, gpv_id {}, version: {}".format(self.rpv_id, self.gpv_id, self.version_id)
+
     @classmethod
     def create_from_genbank(cls, gp, record, version='latest'):
         global logger

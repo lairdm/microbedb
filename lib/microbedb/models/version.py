@@ -33,6 +33,9 @@ class Version(Base):
         except:
             return None
 
+    '''
+    Create a new version of microbedb and return it
+    '''
     @classmethod
     def get_next(cls):
         session = fetch_session()

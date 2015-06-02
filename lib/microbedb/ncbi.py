@@ -14,7 +14,7 @@ import pprint
 
 class ncbi_fetcher():
 
-    def __init__(self, rootdir):
+    def __init__(self):
 
         self.cfg = microbedb.config_singleton.getConfig()
         self.logger = logging.getLogger(__name__)
@@ -26,6 +26,8 @@ class ncbi_fetcher():
         self.ftp.login()
         self.ftp.cwd(self.cfg.ncbi_rootdir)
 
+    def __str__(self):
+        return "ncbi_fetcher()"
 
     def sync_version(self):
 
@@ -108,17 +110,16 @@ class ncbi_fetcher():
 
         gp = GenomeProject.find(**assembly)
 
-        print gp
-
         genome_changed = True if not gp else False
+        self.logger.debug("Starting checksum check, genome has changed: {}".format(genome_changed))
         for line in checksums:
             self.logger.debug("Examining checksum file line: {}".format(line))
             filename, md5 = self.separate_md5line(line)
-            print line
+#            print line
             if not GenomeProject_Checksum.verify(filename, md5):
                 self.logger.debug("Checksum for file {} has changed".format(filename))
                 genome_changed = True
-            print "Found: {} : {} : {}".format(filename, md5, genome_changed)
+            print "Found: {} : {} : changed status: {}".format(filename, md5, genome_changed)
 
         if genome_changed:
             self.logger.info("Genome {}/{} has changed, creating a new copy".format(assembly['assembly_accession'], assembly['asm_name']))

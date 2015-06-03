@@ -128,6 +128,51 @@ class Replicon(Base):
             logger.exception("Unknown error creating Replicon: " + str(e))
             return None
 
+    '''
+    Remove the replicon from the database
+    '''
+    @classmethod
+    def remove_replicon(cls, rpv_id):
+        global logger
+        logger.info("Removing replicon rpv_id {}".format(rpv_id))
+
+        session = fetch_session()
+
+        try:
+            rep = session.query(Replicon).filter(Replicon.rpv_id == rpv_id).first()
+
+            if not rep:
+                logger.error("Replicon rpv_id {} not found".format(rpv_id))
+                raise Exception("Replicon not found")
+
+            session.delete(rep)
+            session.commit()
+
+        except Exception as e:
+            logger.exception("Error removing replicon rpv_id {}".format(rpv_id))
+            session.rollback()
+            raise e
+
+            if remove_files:
+                logger.debug("Removing files for rpv_id {}".format(rpv_id))
+                
+                # First we ensure no other replicon shares the file
+                file_shared = False
+                for r in session.query(Replicon).filter(Replicon.gpv_id == rep.gpv_id,
+                                                        Replicom.file_name == rep.file_name):
+                    if r.rpv_id == rep.rpv_id:
+                        continue
+
+                    logger.warning("Files shared by replicon {}, not removing".format(r.rpv_id))
+
+                    file_shared = True
+                    break
+
+                if not file_shared:
+                    # We're clear to remove the flat file, where do the files live?
+                    gp = session.query(GenomeProject).filter(GenomeProject.gpv_id == rep.gpv_id).first()
+
+                    
 
 #
 # Test the genome description line to see if it's a complete

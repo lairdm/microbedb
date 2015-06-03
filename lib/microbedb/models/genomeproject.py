@@ -1,5 +1,6 @@
 import os
 import logging
+import shutil
 from . import Base, fetch_session
 from .version import Version
 from .replicon import Replicon
@@ -153,7 +154,25 @@ class GenomeProject(Base):
             version = Version.fetch(version)
             self.version_id = version
             self.gpv_directory = os.path.join(Version.fetch_path(version), self.genome_name, self.assembly_accession + '_' + self.asm_name)
-            self.prev_gpv = old_gpv_id
+
+            # We've saved the object, make the file system symlink
+            # but first we have to check if we point to another base object,
+            # if so find that path and link to it
+            if self.prev_gpv:
+                root_gp = session.query(GenomeProject).filter(GenomeProject.gpv_id == self.prev_gpv).first()
+
+                if not root_gp:
+                    logger.critical("We think we should have a root gpv_id {} but we can't find it, time to freak out".format(self.prev_gpv))
+                    raise Exception("We can't find gpv_id {} but we ({}) seem to point to it".format(self.prev_gpv, self.gpv_id))
+
+                # Now remember the path for the root GP so we can symlink to it
+                old_path = root_gp.gpv_directory
+
+            if os.path.exists(old_path) and self.verify_basedir():
+                logger.debug("Making symlink from {} to {}".format(old_path, self.gpv_directory))
+                os.symlink(old_path, self.gpv_directory)
+            else:
+                logger.error("We couldn't find the old path {} to make the symlink from, this is a problem".format(old_path))
 
             logger.debug("Committing self")
             session.add(self)
@@ -177,20 +196,98 @@ class GenomeProject(Base):
                 logger.debug("Copying GP_Checksum for file {}".format(gpcs.filename))
                 gpcs.copy_and_update(**update_params)
 
-            # We've saved the object, make the file system symlink
-            if os.path.exists(old_path) and self.verify_basedir():
-                logger.debug("Making symlink from {} to {}".format(old_path, self.gpv_directory))
-                os.symlink(old_path, self.gpv_directory)
-            else:
-                logger.error("We couldn't find the old path {} to make the symlink from, this is a problem".format(old_path))
-
         except Exception as e:
             logger.exception("Exception cloning GenomeProject: " + str(e))
 #            print "Error cloning ession: " + str(e)
             session.rollback()
             raise e
 
-    
+    '''
+    Remove a GenomeProject, this involves removing all the associated replicons
+    and the GP_Checksum and GP_Meta objects.  Also remove the flat files if
+    requested
+    '''
+    @classmethod
+    def remove_gp(cls, gpv_id, remove_files=False):
+        global logger
+        logger.info("Removing GenomeProject gpv_id {}".format(gpv_id))
+
+        session = fetch_session()
+
+        try:
+            gp = session.query(GenomeProject).filter(GenomeProject.gpv_id == gpv_id).first()
+
+            if not gp:
+                logger.error("GP gpv_id {} not found".format(gpv_id))
+                raise Exception("GenomeProject {} not found".format(gpv_id))
+
+            # First we have to remove all the replicons
+            for rep in session.query(Replicon).filter(Relicon.gpv_id == gpv_id):
+                Replicon.remove_replicon(rep.rpv_id)
+
+            # Next let's remove all the GP_Checksums
+            for gpcs in session.query(GenomeProject_Checksum).filter(GenomeProject_Checksum.gpv_id == gpv_id):
+                session.delete(gpcs)
+
+            # Remove the GP_Meta object
+            for gpmeta in session.query(GenomeProject_Meta).filter(GenomeProject_meta.gpv_id == gpv_id):
+                session.delete(gpmeta)
+
+            logger.debug("Committing changes for deleting GP_Checksum and GP_Meta objects")
+            session.commit()
+
+            # Now we need to untangle the symlinks if there are any
+            if gp.prev_gpv:
+                logger.debug("We're a leaf GP, no one should be pointing at us")
+            else:
+                # Someone could be pointing at us
+                next_gp = None
+                for gp_obj in session.query(GenomeProject).filter(GenomeProject.prev_gpv == gp.gpv_id).order_by(GenomeProject.gpv_id.asc()):
+                    # For the first one, this will become the new root,
+                    # all subsequent items should point here, and this new
+                    # root shouldn't have a prev_gpv any longer
+                    if not next_gp:
+                        next_gp = gp_obj
+                        next_gp.prev_gpv = None
+                        if os.path.islink(next_gp.gpv_directory):
+                            os.unlink(next_gp.gpv_directory)
+                            logger.debug("Copying GP dir tree {}, {} to new root {}, {}".format(gp.gpv_id, gp.gpv_directory, next_gp.gpv_id, next_gp.gpv_directory))
+                            shutil.copytree(gp.gpv_directory, next_gp.gpv_directory)
+                        else:
+                            logger.critical("We expected a symlink for gpv_id {}, path {} but it wasn't".format(next_gp.gpv_id, next_gp.gpv_directory))
+                            
+                        # Nothing more to do for this iteration
+                        continue
+
+                    # Now these following ones should point at the new root,
+                    # this involves changing the pointer and symlink
+                    logger.debug("Moving symlink for gpv_id {} to new root {}, {}".format(gpv_obj.gpv_id, next_gp.gpv_id, next_gp.gpv_directory))
+                    if os.path.islink(gp_obj.gpv_directory):
+                        os.unlink(gp_obj.gpv_directory)
+                        os.symlink(next_gp.gpv_directory, gp_obj.gpv_directory)
+                    else:
+                        logger.critical("We expected a symlink for gpv_id {}, path {} but it wasn't".format(gp_obj.gpv_id, gp_obj.gpv_directory))
+
+                # And if we found items that pointed to us, this
+                # means we have rows to commit
+                if next_gp:
+                    session.commit()
+
+            # Finally, remove the files if requested
+            if remove_files:
+                if os.path.islink(gp.gpv_directory):
+                    logger.debug("Removing symlink for gpv_id {}, {}".format(gp.gpv_id, gp.gpv_directory))
+                    os.unlink(gp.gpv_directory)
+                else:
+                    logger.debug("Removing tree for gpv_id {}, {}".format(gp.gpv_id, gp.gpv_directory))
+                    shutil.rmtree(gp.gpv_directory)
+
+            logger.debug("GenomeProject {} should now be removed".format(gpv_id))
+
+        except Exception as e:
+            logger.exception("Error removing GP {}".format(gpv_id))
+            raise e
+
     #
     # Since NCBI stores genome projects grouped by species, we need to ensure
     # a genome's base directory is there

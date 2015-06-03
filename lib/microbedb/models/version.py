@@ -107,6 +107,30 @@ class Version(Base):
             session.rollback()
             return False
 
+    '''
+    Remove a version of MicrobeDB, including all the GenomeProjects and
+    Replicons.  Remove the flat files if requested.
+    '''
+    @classmethod
+    def remove_version(cls, version, remove_files=False):
+        global logger
+        version = cls.fetch(version)
+        if not version:
+            logger.error("We couldn't find the version to remove")
+            raise Exception("Couldn't find version to remove")
+
+        session = fetch_session()
+
+        logger.info("Removing MicrobeDB version {}, remove files: {}".format(version, remove_files))
+
+        try:
+            for gp in session.query(GenomeProject).filter(GenomeProject.version_id == version):
+                GenomeProject.remove_gp(gp.gpv_id, remove_files=remove_files)
+
+        except Exception as e:
+            logger.exception("Error removing MicrobeDB version {}".format(version))
+            raise e
+
     @classmethod
     def mkpath(cls, version):
         global logger

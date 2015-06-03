@@ -142,6 +142,11 @@ class ncbi_fetcher():
             self.parse_replicons(gp)
         else:
             self.logger.info("Genome {}/{} hasn't changed, cloning".format(assembly['assembly_accession'], assembly['asm_name']))
+
+            if gp.version_id == Version.latest():
+                self.logger.error("We already seem to have gpv_id {} for version {}, skipping".format(gp.gpv_id, gp.version_id))
+                return
+
             self.copy_genome(gp)
 
     #

@@ -222,7 +222,7 @@ class GenomeProject(Base):
                 raise Exception("GenomeProject {} not found".format(gpv_id))
 
             # First we have to remove all the replicons
-            for rep in session.query(Replicon).filter(Relicon.gpv_id == gpv_id):
+            for rep in session.query(Replicon).filter(Replicon.gpv_id == gpv_id):
                 Replicon.remove_replicon(rep.rpv_id)
 
             # Next let's remove all the GP_Checksums
@@ -230,11 +230,8 @@ class GenomeProject(Base):
                 session.delete(gpcs)
 
             # Remove the GP_Meta object
-            for gpmeta in session.query(GenomeProject_Meta).filter(GenomeProject_meta.gpv_id == gpv_id):
+            for gpmeta in session.query(GenomeProject_Meta).filter(GenomeProject_Meta.gpv_id == gpv_id):
                 session.delete(gpmeta)
-
-            logger.debug("Committing changes for deleting GP_Checksum and GP_Meta objects")
-            session.commit()
 
             # Now we need to untangle the symlinks if there are any
             if gp.prev_gpv:
@@ -278,11 +275,19 @@ class GenomeProject(Base):
                 if os.path.islink(gp.gpv_directory):
                     logger.debug("Removing symlink for gpv_id {}, {}".format(gp.gpv_id, gp.gpv_directory))
                     os.unlink(gp.gpv_directory)
-                else:
+                elif os.path.exists(gp.gpv_directory):
                     logger.debug("Removing tree for gpv_id {}, {}".format(gp.gpv_id, gp.gpv_directory))
                     shutil.rmtree(gp.gpv_directory)
+                else:
+                    logger.critical("Directory for gpv_id {}, {} doesn't seem to exist".format(gp.gpv_id, gp.gpv_directory))
 
             logger.debug("GenomeProject {} should now be removed".format(gpv_id))
+
+            logger.debug("Removing the GP gpv_id {} object".format(gp.gpv_id))
+            session.delete(gp)
+
+            logger.debug("Committing changes for deleting GP_Checksum and GP_Meta objects")
+            session.commit()
 
         except Exception as e:
             logger.exception("Error removing GP {}".format(gpv_id))

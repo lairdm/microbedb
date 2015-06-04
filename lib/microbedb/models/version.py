@@ -1,6 +1,8 @@
 import os
 import logging
+import shutil
 from . import Base, fetch_session
+#from .genomeproject import GenomeProject
 from sqlalchemy import Column, ForeignKey, Integer, String, Text, Date, Enum, Float, Boolean
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql.expression import desc
@@ -55,6 +57,12 @@ class Version(Base):
         return v
 
     @classmethod
+    def fetch_default_path(cls):
+        cfg = microbedb.config_singleton.getConfig()
+
+        return os.path.join(cfg.basedir, "Bacteria")
+
+    @classmethod
     def fetch(cls, version):
 
         if version == 'current':
@@ -62,7 +70,7 @@ class Version(Base):
         elif version == 'latest':
             version = Version.latest()
 
-        return version
+        return int(version)
 
     @classmethod
     def fetch_path(cls, version):
@@ -75,6 +83,36 @@ class Version(Base):
             return session.query(Version).filter(Version.version_id == version).first().dl_directory
         except:
             return None
+
+    '''
+    Set the default directory symlink to the given version
+    '''
+    @classmethod
+    def set_default_directory(cls, version):
+        global logger
+        version = cls.fetch(version)
+        if not version:
+            logger.error("Error, we couldn't get the version")
+            return False
+
+        try:
+            path = Version.fetch_path(version)
+            default_path = Version.fetch_default_path()
+
+            if path and os.path.exists(path):
+                if os.path.exists(default_path):
+                    if os.path.islink(default_path):
+                        os.unlink(default_path)
+                    else:
+                        shutil.rmtree(default_path)
+
+                os.symlink(path, default_path)
+                
+            return True
+
+        except Exception as e:
+            logger.exception("Error changing symlink for default path")
+            return False
 
     @classmethod
     def set_current(cls, version):
@@ -98,7 +136,7 @@ class Version(Base):
 
             session.commit()
 
-            # TODO: Set the symlink here
+            Version.set_default_directory(version)
 
             return True
 
@@ -124,8 +162,31 @@ class Version(Base):
         logger.info("Removing MicrobeDB version {}, remove files: {}".format(version, remove_files))
 
         try:
-            for gp in session.query(GenomeProject).filter(GenomeProject.version_id == version):
-                GenomeProject.remove_gp(gp.gpv_id, remove_files=remove_files)
+#            for gp in session.query(GenomeProject).filter(GenomeProject.version_id == version):
+#                GenomeProject.remove_gp(gp.gpv_id, remove_files=remove_files)
+
+            update_current = False
+            print Version.current()
+            if version == Version.current():
+                # Uh-oh, this is the current version, we'll have
+                # to set a new current version
+                logger.debug("This version {} is the current".format(version))
+                update_current = True
+
+            logger.info("Removing version {}".format(version))
+            v_obj = session.query(Version).filter(Version.version_id == version).first()
+
+            if remove_files and os.path.exists(v_obj.dl_directory):
+                logger.debug("Removing directory for version {}, {}".format(version, v_obj.dl_directory))
+                shutil.rmtree(v_obj.dl_directory)
+
+            session.delete(v_obj)
+            session.commit()
+
+            if update_current:
+                new_current = Version.latest()
+                logger.info("Updating version {} as new current version".format(new_current))
+                Version.set_current(new_current)
 
         except Exception as e:
             logger.exception("Error removing MicrobeDB version {}".format(version))

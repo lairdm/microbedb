@@ -34,19 +34,14 @@ class ncbi_fetcher():
         # First we fetch all the files
         files = self.ftp.nlst()
 
-        files = files[1:20]
-        print files
+#        files = files[1:20]
+#        print files
 
         for file in files:
             self.logger.info("Processing remote directory: {}".format(file))
             self.process_remote_directory(file)
 
             
-#        pprint.pprint(files)
-#        self.fetch_summary("blah")
-#        self.process_remote_directory(files[1])
-#        ftp.retrlines('LIST')
-
     def process_remote_directory(self, genomedir):
         
         assembly_lines = []
@@ -61,8 +56,6 @@ class ncbi_fetcher():
 
         except ftplib.error_perm as e:
             self.logger.exception("Perm FTP error: " + str(e))
-#            print "Perm error"
-#            print e
         except Exception as e:
             self.logger.exception("Unknown exception: " + str(e))
             print e
@@ -86,8 +79,6 @@ class ncbi_fetcher():
             return
 
         self.logger.info("Found complete genome: " + str(assembly))
-#        pprint.pprint(assembly)
-#        print line
 
         self.process_genome(genomedir,
                             assembly)
@@ -136,7 +127,6 @@ class ncbi_fetcher():
             if not gp:
                 self.logger.error("We had a problem making the GenomeProject {}/{}".format(current_genome, assembly['assembly_accession']))
                 return
-#                raise Exception("We had a prolem making the GenomeProject")
 
             # Fetch metadata from source or clone it from current version if we have
             # it, here
@@ -159,12 +149,9 @@ class ncbi_fetcher():
                     gp.file_types = ' '.join(exts)
                     self.logger.debug("Commiting extensions for gpv_id {}: {}".format(gp.gpv_id, gp.file_types))
                     gp.commit()
-#                    session.add(gp)
-#                    session.commit()
 
             except Exception as e:
                 self.logger.exception("Error fetching file types for gpv_id {}".format(gp.gpv_id))
- #               session.rollback()
                 
         else:
             self.logger.info("Genome {}/{} hasn't changed, cloning".format(assembly['assembly_accession'], assembly['asm_name']))

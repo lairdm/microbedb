@@ -29,10 +29,12 @@ def fetch_session():
 from genomeproject import GenomeProject, GenomeProject_Meta, GenomeProject_Checksum
 from replicon import Replicon
 from version import Version
+from taxonomy import Taxonomy
 
 __all__ = ['GenomeProject', 'GenomeProject_Meta', 'GenomeProject_Checksum',
            'Replicon',
            'Version',
+           'Taxonomy',
            'fetch_session'
     ]
 

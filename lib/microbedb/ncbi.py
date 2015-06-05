@@ -141,6 +141,13 @@ class ncbi_fetcher():
             # Fetch metadata from source or clone it from current version if we have
             # it, here
 
+            # And ensure we have all the taxonomy information
+            if gp.taxid:
+                Taxonomy.find_or_create(gp.taxid)
+
+            if gp.species_taxid:
+                Taxonomy.find_or_create(gp.species_taxid)
+
             self.fetch_genome(gp, url_pieces.path, checksums)
 
             self.parse_replicons(gp)
@@ -251,6 +258,12 @@ class ncbi_fetcher():
                     type_count[rep.rep_type+"_num"] += 1
 
             self.logger.debug("Updating GP with rep_types: " + str(type_count))
+
+            # Try to find the gram stain
+            gram = Taxonomy.guess_gram(gp.species_taxid)
+            if gram:
+                type_count['gram_stain'] = gram
+
             GenomeProject_Meta.create_or_update(gp.gpv_id, **type_count)
 
             # Commit the rep_type changes

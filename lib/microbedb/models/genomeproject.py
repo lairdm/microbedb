@@ -29,6 +29,7 @@ class GenomeProject(Base):
     submitter = Column(Text)
     release_date = Column(Date)
     gpv_directory = Column(Text)
+    file_types = Column(Text)
     prev_gpv = Column(Integer)
 
     def __str__(self):
@@ -50,7 +51,6 @@ class GenomeProject(Base):
 
         except Exception as e:
             logger.exception("Error looking up GenomeProject, " + str(e))
-#            print "Error looking up GenomeProject: " + str(e)
             return None
 
         return gp
@@ -93,19 +93,17 @@ class GenomeProject(Base):
 
             gp.version_id = Version.fetch(version)
             gp.gpv_directory = os.path.join(Version.fetch_path(gp.version_id), kwargs['genome_name'], kwargs['assembly_accession'] + '_' + kwargs['asm_name'])
-
+            
             logger.debug("Committing GenomeProject: " + str(gp))
             session.add(gp)
             session.commit()
 
         except sqlalcexcept.IntegrityError as e:
             logger.exception("GP insertion error (IntegrityError): " + str(e))
-#            print "Insertion error: " + str(e)
             session.rollback()
             return None
         except Exception as e:
             logger.exception("Unknown error creating GenomeProject: " + str(e))
-#            print "Error creating GenomeProject obj: " + str(e)
             return None
 
         return gp
@@ -182,9 +180,7 @@ class GenomeProject(Base):
             # updated ourself, clone the gp_meta object
             if gp_meta:
                 logger.debug("We have metadata, clone: {}".format(gp_meta))
-#                print gp_meta
                 gp_meta.clone_gpmeta(self.gpv_id) 
-#                print gp_meta
 
            # Clone the replicons as we clone the GP record
             update_params = {'version_id': version, 'gpv_id': self.gpv_id}
@@ -198,9 +194,70 @@ class GenomeProject(Base):
 
         except Exception as e:
             logger.exception("Exception cloning GenomeProject: " + str(e))
-#            print "Error cloning ession: " + str(e)
+
             session.rollback()
             raise e
+
+    '''
+    For when we pass a GP object around, we need a way
+    to commit the changes
+    '''
+    def commit(self):
+        global logger
+        logger.debug("Committing changes to self")
+
+        session = fetch_session()
+
+        try:
+            session.add(self)
+            session.commit()
+
+            return True
+
+        except Exception as e:
+            logger.exception("Error commiting our changes")
+            session.rollback()
+            return False
+
+    '''
+    Find the file extensions for a gp, we'll allow a gp
+    object to be passed in if we have it
+    '''
+    @classmethod
+    def find_extensions(cls, gpv_id, gp=None):
+        global logger
+        logger.info("Finding file extensons for gpv_id {}".format(gpv_id))
+
+        session = fetch_session()
+
+        try:
+            if gp and gp.gpv_id == gpv_id:
+                logger.debug("Given a GP, not looking it up")
+            else:
+                gp = session.query(GenomeProject).filter(GenomeProject.gpv_id == gpv_id).first()
+
+            if not gp:
+                logger.error("We don't seem to have a gp for gpv_id {}, can't look up paths".format(gpv_id))
+                return None
+
+            files = [ f for f in os.listdir(gp.gpv_directory) if os.path.isfile(os.path.join(gp.gpv_directory,f)) ]
+
+            exts = list()
+            for file in files:
+                ext = os.path.splitext(file)[-1]
+                if ext:
+                    exts.append(ext)
+
+            logger.debug("Found file types: {}".format(exts))
+            exts=list(set(exts))
+            exts.sort()
+            
+            return exts
+
+        except Exception as e:
+            logger.exception("Error finding file extensions for GenomeProject {}".format(gpv_id))
+            return None
+
 
     '''
     Remove a GenomeProject, this involves removing all the associated replicons
@@ -373,7 +430,6 @@ class GenomeProject_Meta(Base):
 
         except Exception as e:
             logger.exception("Error cloning Meta: " + str(e))
-#            print "Error cloning ession: " + str(e)
             session.rollback()
             raise e
 
@@ -486,5 +542,4 @@ class GenomeProject_Checksum(Base):
 
         except Exception as e:
             logger.exception("Error checking checksum: " + str(e))
-#            print "Error looking up GenomeProject: " + str(e)
             return False

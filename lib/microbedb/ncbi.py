@@ -34,13 +34,17 @@ class ncbi_fetcher():
         # First we fetch all the files
         files = self.ftp.nlst()
 
-        for file in files[1:5]:
-            print "Processing {}".format(file)
+        files = files[1:20]
+        print files
+
+        for file in files:
+            self.logger.info("Processing remote directory: {}".format(file))
+            self.process_remote_directory(file)
 
             
 #        pprint.pprint(files)
 #        self.fetch_summary("blah")
-        self.process_remote_directory(files[1])
+#        self.process_remote_directory(files[1])
 #        ftp.retrlines('LIST')
 
     def process_remote_directory(self, genomedir):
@@ -140,6 +144,21 @@ class ncbi_fetcher():
             self.fetch_genome(gp, url_pieces.path, checksums)
 
             self.parse_replicons(gp)
+
+            try:
+                session = fetch_session()
+                exts = GenomeProject.find_extensions(gp.gpv_id, gp=gp)
+                if exts:
+                    gp.file_types = ' '.join(exts)
+                    self.logger.debug("Commiting extensions for gpv_id {}: {}".format(gp.gpv_id, gp.file_types))
+                    gp.commit()
+#                    session.add(gp)
+#                    session.commit()
+
+            except Exception as e:
+                self.logger.exception("Error fetching file types for gpv_id {}".format(gp.gpv_id))
+ #               session.rollback()
+                
         else:
             self.logger.info("Genome {}/{} hasn't changed, cloning".format(assembly['assembly_accession'], assembly['asm_name']))
 
@@ -161,7 +180,6 @@ class ncbi_fetcher():
         gp.clone_gp()
 
         self.logger.debug("New gpv_id: {}".format(gp.gpv_id))
-        print "New gpv_id " + str(gp.gpv_id)
 
     #
     # We have an updated genome, grab the files,
@@ -205,7 +223,7 @@ class ncbi_fetcher():
                     os.unlink(local_filename)
 
             except Exception as e:
-                print "Exception inserting checksum for {}: ".format(filename) + str(e)
+                self.logger.exception("Exception inserting checksum for {}: ".format(filename))
                 session.rollback()
                 raise e
 
@@ -229,19 +247,11 @@ class ncbi_fetcher():
 
             with open(genbank_file, 'rU') as infile:
                 for record in SeqIO.parse(infile, "genbank"):
-                    print dir(record)
-                    print record.id
-                    print record.description
-#                    pprint.pprint(record.dbxrefs)
-                    #                pprint.pprint(record.annotations)
-#                    pprint.pprint(record.features)
                     rep = Replicon.create_from_genbank(gp, record)
                     type_count[rep.rep_type+"_num"] += 1
 
             self.logger.debug("Updating GP with rep_types: " + str(type_count))
             GenomeProject_Meta.create_or_update(gp.gpv_id, **type_count)
-#            for rep_type in type_count:
-#                setattr(gp, rep_type+"_num", type_count[rep_type])
 
             # Commit the rep_type changes
             session.commit()

@@ -26,7 +26,6 @@ class Replicon(Base):
     gene_num = Column(Integer)
     rep_size = Column(Integer)
     rna_num = Column(Integer)
-    file_types = Column(Text)
 
     def __str__(self):
         return "Replicon(): rpv_id: {}, gpv_id {}, version: {}".format(self.rpv_id, self.gpv_id, self.version_id)
@@ -78,13 +77,11 @@ class Replicon(Base):
 
         except sqlalcexcept.IntegrityError as e:
             logger.exception("Error inserting Replicon: " + str(e))
-#            print "Error creating replicon: " + str(e)
             session.rollback()
             return None
 
         except Exception as e:
             logger.exception("Unknown exception creating Replicon: " + str(e))
-#            print "Unknown exception:" + str(e)
             return None
 
     def copy_and_update(self, **kwargs):
@@ -128,6 +125,7 @@ class Replicon(Base):
             logger.exception("Unknown error creating Replicon: " + str(e))
             return None
 
+
     '''
     Remove the replicon from the database
     '''
@@ -153,25 +151,6 @@ class Replicon(Base):
             session.rollback()
             raise e
 
-            if remove_files:
-                logger.debug("Removing files for rpv_id {}".format(rpv_id))
-                
-                # First we ensure no other replicon shares the file
-                file_shared = False
-                for r in session.query(Replicon).filter(Replicon.gpv_id == rep.gpv_id,
-                                                        Replicom.file_name == rep.file_name):
-                    if r.rpv_id == rep.rpv_id:
-                        continue
-
-                    logger.warning("Files shared by replicon {}, not removing".format(r.rpv_id))
-
-                    file_shared = True
-                    break
-
-                if not file_shared:
-                    # We're clear to remove the flat file, where do the files live?
-                    gp = session.query(GenomeProject).filter(GenomeProject.gpv_id == rep.gpv_id).first()
-
                     
 
 #
@@ -188,11 +167,13 @@ def find_replicon_type(desc):
     # Convert to lower case
     desc = desc.lower()
 
-    if re.search('complete genome', desc):
+    if re.search('plasmid', desc):
+        return 'plasmid'
+    elif re.search('complete genome', desc):
+        return 'chromosome'
+    elif re.search('complete sequence', desc):
         return 'chromosome'
     elif re.search('chromosome', desc):
         return 'chromosome'
-    elif re.search('plasmid', desc):
-        return 'plasmid'
 
     return 'contig'

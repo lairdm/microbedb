@@ -1,6 +1,7 @@
 import os
 import logging
 import shutil
+from datetime import date
 from . import Base, fetch_session
 #from .genomeproject import GenomeProject
 from sqlalchemy import Column, ForeignKey, Integer, String, Text, Date, Enum, Float, Boolean
@@ -51,7 +52,10 @@ class Version(Base):
         session.add(v)
         session.commit()
 
-        v.dl_directory = os.path.join(cfg.basedir, str(v.version_id))
+        d = date.today()
+        datestr = d.strftime("%Y-%m-%d")
+
+        v.dl_directory = os.path.join(cfg.basedir, 'Bacteria_' + datestr)
         session.commit()
 
         return v
@@ -100,11 +104,12 @@ class Version(Base):
             default_path = Version.fetch_default_path()
 
             if path and os.path.exists(path):
-                if os.path.exists(default_path):
-                    if os.path.islink(default_path):
-                        os.unlink(default_path)
-                    else:
-                        shutil.rmtree(default_path)
+                if os.path.islink(default_path):
+                    os.unlink(default_path)
+                elif os.path.exists(default_path):
+                    shutil.rmtree(default_path)
+                else:
+                    logger.error("Default path doesn't exist, why was this? ({})".format(default_path))
 
                 os.symlink(path, default_path)
                 
@@ -166,7 +171,6 @@ class Version(Base):
 #                GenomeProject.remove_gp(gp.gpv_id, remove_files=remove_files)
 
             update_current = False
-            print Version.current()
             if version == Version.current():
                 # Uh-oh, this is the current version, we'll have
                 # to set a new current version

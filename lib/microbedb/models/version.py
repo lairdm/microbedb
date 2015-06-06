@@ -74,7 +74,12 @@ class Version(Base):
         datestr = d.strftime("%Y-%m-%d")
 
         v.dl_directory = os.path.join(cfg.basedir, 'Bacteria_' + datestr)
+
         session.commit()
+
+        # Special case for when we're first initializing microbedb
+        if not Version.current():
+            Version.set_current(v.version_id)
 
         return v
 

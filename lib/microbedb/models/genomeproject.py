@@ -1,3 +1,23 @@
+'''
+Genome Project model
+(microbedb.models.genomeproject)
+
+MicrobeDB
+
+Represents a GenomeProject including it's dependent pieces
+the GenomeProject_Meta and GenomeProject_Checksum objects.
+
+For versions of a particular genome, if it doesn't change across
+microbedb versions a new copy isn't downloaded, instead
+the records are cloned and a symlink is made to the previous 
+downloaded version.  If a version doesn't change across multiple
+successive MDB versions all following cloned records point back
+to the first downloaded version in the series.
+
+Checksums are the NCBI checksums for download files associated
+with a particular version of a genome.
+'''
+
 import os
 import logging
 import shutil
@@ -12,6 +32,10 @@ import microbedb.config_singleton
 import pprint
 
 logger = logging.getLogger(__name__)
+
+'''
+An individual version of a genome project
+'''
 
 class GenomeProject(Base):
     __tablename__ = 'genomeproject'
@@ -35,6 +59,15 @@ class GenomeProject(Base):
     def __str__(self):
         return "GenomeProject(): gpv_id {}, genome: {}/{}_{}, version: {}".format(self.gpv_id, self.genome_name, self.assembly_accession, self.asm_name, self.version_id)
 
+    '''
+    Find a GenomeProject given the assembly_accession and asm_name in
+    the kwargs option.  An optional version can be given, otherwise
+    the current version of microbedb will be searched.
+
+    Allowed version strings: A version number, current, or latest
+
+    Returns None if a GP can't be found
+    '''
     @classmethod
     def find(cls, version='current', **kwargs):
         global logger
@@ -55,6 +88,17 @@ class GenomeProject(Base):
 
         return gp
 
+    '''
+    Find a GenomeProject, based on assembly_accession and asm_name, if none if found
+    create a GP.  Properties for a created GP should be given in the kwargs parameter.
+    Optional parameters of version (version to search) and create_version (version to 
+    create a GP object in).
+
+    Allowed version strings: A version number, current, or latest
+
+    Returns a tuple, (GP/None, True/False), the first being the GP if found or created, none
+    if an error occurred.  The second being True or False on if a GP was created.
+    '''
     @classmethod
     def find_or_create(cls, version='current', create_version='current', **kwargs):
         global logger
@@ -125,6 +169,13 @@ class GenomeProject(Base):
         except Exception as e:
             logger.exception("Error searching for GP: " + str(e))
             return None
+
+    '''
+    Clone a GenomeProject, in to the mcirobedb version given (default=latest)
+    
+    No return value, if successful the GP object will be associated with
+    the new microbedb version.  If failure, an exception will be raised.
+    '''
 
     def clone_gp(self, version='latest'):
         global logger
@@ -201,6 +252,8 @@ class GenomeProject(Base):
     '''
     For when we pass a GP object around, we need a way
     to commit the changes
+
+    If successful return True, if commit fails return False
     '''
     def commit(self):
         global logger
@@ -221,7 +274,11 @@ class GenomeProject(Base):
 
     '''
     Find the file extensions for a gp, we'll allow a gp
-    object to be passed in if we have it
+    object to be passed in if we have it to save a database
+    query.
+
+    If successful returns a sorted list of all file extensions
+    found in the GP's gpv_directory.  None otherwise.
     '''
     @classmethod
     def find_extensions(cls, gpv_id, gp=None):
@@ -408,6 +465,11 @@ class GenomeProject_Meta(Base):
     def __str__(self):
         return "GenomeProject_Meta(): gpv_id {}, chromosome: {}, plasmid: {}, contig: {}".format(self.gpv_id, self.chromosome_num, self.plasmid_num, self.contig_num)
 
+    '''
+    Clone a GP_Meta object, clone and associate the current GP_Meta object
+    with the given GP gpv_id.  Returns nothing because the object if
+    successful will be the cloned object.  Raise an exception on failure.
+    '''
     def clone_gpmeta(self, gpv_id):
         global logger
         logger.info("Cloning GenomeProject_Meta, gpv_id: {}".format(gpv_id))
@@ -433,6 +495,15 @@ class GenomeProject_Meta(Base):
             session.rollback()
             raise e
 
+    '''
+    If the GP_Meta object based on gpv_id can't be found create
+    a new GP_Meta object based on the parameters in the kwargs.
+    If the GP_Meta is found, update the object based on the
+    kwargs.
+
+    On success return the GP_Meta object, otherwise raise an
+    exception.
+    '''
     @classmethod
     def create_or_update(cls, gpv_id, **kwargs):
         global logger
@@ -475,6 +546,12 @@ class GenomeProject_Checksum(Base):
     def __str__(self):
         return "GenomeProject_Checksum(): gpv_id {}, version: {}, filename: {}".format(self.gpv_id, self.version, self.filename)
 
+    '''
+    Create a GP_Checksum object based on the kwargs
+    parameters.
+
+    On success return the GP_Checksum object, None on failure
+    '''
     def copy_and_update(self, **kwargs):
         global logger
         logger.info("Copy and update GP_Checksum file: {}, version: {}".format(self.filename, self.version))

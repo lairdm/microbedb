@@ -1,3 +1,11 @@
+'''
+Version model
+(microbedb.models.version)
+
+Represents a version of MicrobeDB that GenomeProjects are
+associated with.
+'''
+
 import os
 import logging
 import shutil
@@ -23,6 +31,11 @@ class Version(Base):
     def __str__(self):
         return "Version(): {}, is_current {}, dl_directory: {}".format(self.version_id, self.is_current, self.dl_directory)
 
+    '''
+    Fetch the version_id of the latest (newest) version of microbedb
+
+    None if no versions exist
+    '''
     @classmethod
     def latest(cls):
         session = fetch_session()
@@ -31,6 +44,11 @@ class Version(Base):
         except:
             return None
 
+    '''
+    Fetch the version_id of the current (live) version of microbedb
+
+    None if no versions exist
+    '''
     @classmethod
     def current(cls):
         session = fetch_session()
@@ -60,12 +78,21 @@ class Version(Base):
 
         return v
 
+    '''
+    Fetch the path that points to the current version of microbedb
+    '''
     @classmethod
     def fetch_default_path(cls):
         cfg = microbedb.config_singleton.getConfig()
 
         return os.path.join(cfg.basedir, "Bacteria")
 
+    '''
+    Fetch a named version of microbedb
+
+    TODO: allow tagging of versions with a name beyond
+    latest and current
+    '''
     @classmethod
     def fetch(cls, version):
 
@@ -76,6 +103,11 @@ class Version(Base):
 
         return int(version)
 
+    '''
+    Fetch the path for a given version_id of microbedb
+
+    Return None if not found
+    '''
     @classmethod
     def fetch_path(cls, version):
         version = cls.fetch(version)
@@ -119,6 +151,10 @@ class Version(Base):
             logger.exception("Error changing symlink for default path")
             return False
 
+    '''
+    Set the current version of microbedb to the given version_id and
+    change the path for the static directory name as needed
+    '''
     @classmethod
     def set_current(cls, version):
         global logger
@@ -196,6 +232,11 @@ class Version(Base):
             logger.exception("Error removing MicrobeDB version {}".format(version))
             raise e
 
+    '''
+    Make the path for a given version_id of microbedb.
+
+    Return True if successful, otherwise False
+    '''
     @classmethod
     def mkpath(cls, version):
         global logger

@@ -1,5 +1,10 @@
 '''
 Library to fetch and process directories from ncbi
+
+Controls the process of fetching the index from NCBI,
+parse and either download a new version of a genome
+or clone the previous version depending on if the 
+checksums have changed.
 '''
 
 import ftplib
@@ -29,19 +34,26 @@ class ncbi_fetcher():
     def __str__(self):
         return "ncbi_fetcher()"
 
+    '''
+    Fetch the root directory of NCBI's prokaryotic
+    genomes, for each send it for processing all the
+    isolates within.
+    '''
     def sync_version(self):
 
         # First we fetch all the files
         files = self.ftp.nlst()
-
-#        files = files[1:20]
-#        print files
 
         for file in files:
             self.logger.info("Processing remote directory: {}".format(file))
             self.process_remote_directory(file)
 
             
+    '''
+    For a given species directory in NCBI's ftp
+    directory, download the assembly summary file,
+    and send it down the line for processing
+    '''
     def process_remote_directory(self, genomedir):
         
         assembly_lines = []
@@ -63,7 +75,8 @@ class ncbi_fetcher():
 
     #
     # For a given line of a summary file, determine
-    # if we should process it
+    # if we should process it. Is it a complete 
+    # genome?
     #
     def process_summary(self, genomedir, line):
 
@@ -95,35 +108,43 @@ class ncbi_fetcher():
             self.logger.error("No FTP path for genome {}/{}".format(current_genome, assembly['assembly_accession']))
             return
 
+        # Build the url for the checksum file, then grab it
         url_pieces = urlparse(assembly['ftp_path'])
-        print url_pieces
         summary_url = "{}/md5checksums.txt".format(url_pieces.path)
-        print summary_url
         checksums = []
         self.logger.debug("RETR checksum file {}".format(summary_url))
         self.ftp.retrlines("RETR {}".format(summary_url), checksums.append)
 
+        # See if we have this genome in the current version of the
+        # database already
         gp = GenomeProject.find(**assembly)
 
+        # If we didn't find the GP, then consider it changed already
         genome_changed = True if not gp else False
         self.logger.debug("Starting checksum check, genome has changed: {}".format(genome_changed))
+
+        # Go through the checksum lines, and for each see if we have
+        # that checksum already and if it matches the current microbedb version
         for line in checksums:
             self.logger.debug("Examining checksum file line: {}".format(line))
             filename, md5 = self.separate_md5line(line)
-#            print line
+
+            # If the checksum if different (or wasn't found) we know the genome
+            # has changed and we'll have tp update it
             if not GenomeProject_Checksum.verify(filename, md5):
                 self.logger.debug("Checksum for file {} has changed".format(filename))
                 genome_changed = True
-            print "Found: {} : {} : changed status: {}".format(filename, md5, genome_changed)
 
+        # If the genome has changed we're going to have to download and process it
         if genome_changed:
             self.logger.info("Genome {}/{} has changed, creating a new copy".format(assembly['assembly_accession'], assembly['asm_name']))
-            # Start fresh
+            # Start fresh, don't reuse the previous GP, even if found
             # We're going to maintain the same directory structure, so we need the directory
             # name for the species
             assembly['genome_name'] = current_genome
             gp = GenomeProject.create_gp(version='latest', **assembly)
 
+            # Uh-oh, we had a problem making the new GenomeProject, bail
             if not gp:
                 self.logger.error("We had a problem making the GenomeProject {}/{}".format(current_genome, assembly['assembly_accession']))
                 return
@@ -131,19 +152,23 @@ class ncbi_fetcher():
             # Fetch metadata from source or clone it from current version if we have
             # it, here
 
-            # And ensure we have all the taxonomy information
+            # And ensure we have all the taxonomy information for this genome
             if gp.taxid:
                 Taxonomy.find_or_create(gp.taxid)
 
             if gp.species_taxid:
                 Taxonomy.find_or_create(gp.species_taxid)
 
+            # Go fetch the genome files from NCBI
             self.fetch_genome(gp, url_pieces.path, checksums)
 
+            # Now that we should have the files, process and load
+            # the replicons
             self.parse_replicons(gp)
 
             try:
-                session = fetch_session()
+                # Go find all the file extensions in
+                # the directory structure and record them
                 exts = GenomeProject.find_extensions(gp.gpv_id, gp=gp)
                 if exts:
                     gp.file_types = ' '.join(exts)
@@ -153,13 +178,18 @@ class ncbi_fetcher():
             except Exception as e:
                 self.logger.exception("Error fetching file types for gpv_id {}".format(gp.gpv_id))
                 
+        # Nothing changed in this genome so just clone everything and
+        # make the needed symlinks
         else:
             self.logger.info("Genome {}/{} hasn't changed, cloning".format(assembly['assembly_accession'], assembly['asm_name']))
 
+            # What if the script was restarted? And we've already loaded this genone?
+            # Do nothing then
             if gp.version_id == Version.latest():
                 self.logger.error("We already seem to have gpv_id {} for version {}, skipping".format(gp.gpv_id, gp.version_id))
                 return
 
+            # Copy the genome and all realted pieces
             self.copy_genome(gp)
 
     #
@@ -239,6 +269,8 @@ class ncbi_fetcher():
                           'plasmid_num': 0,
                           'contig_num': 0 }
 
+            # Parse the genbank file and for each replicon in it
+            # parse and load it
             with open(genbank_file, 'rU') as infile:
                 for record in SeqIO.parse(infile, "genbank"):
                     rep = Replicon.create_from_genbank(gp, record)
@@ -261,6 +293,9 @@ class ncbi_fetcher():
             session.rollback()
             raise e
 
+    '''
+    The mappings of an ncbi assembly summary file to fields we need
+    '''
     def map_summary(self, line):
         pieces = line.split("\t")
 

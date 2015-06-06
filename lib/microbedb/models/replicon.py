@@ -1,3 +1,10 @@
+'''
+Replicon model
+
+Represents an individual relicon (chromosome, plasmid, contig)
+associated with a GenomeProject.
+'''
+
 import os
 import re
 import logging
@@ -84,6 +91,12 @@ class Replicon(Base):
             logger.exception("Unknown exception creating Replicon: " + str(e))
             return None
 
+    '''
+    Copy a Replicon, creating a new Replicon object that is returned.
+
+    If any properties are given in kwargs, update the newly created
+    object with these values rather than from the original object.
+    '''
     def copy_and_update(self, **kwargs):
         global logger
         logger.info("Copy and update replicon {}".format(self.rpv_id))

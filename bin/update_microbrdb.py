@@ -1,5 +1,13 @@
 #!/usr/bin/env python
 
+'''
+Query NCBI and update MicrobeDB.
+
+Unless the -n option is given a new version of microbedb
+will be created and populated.
+
+'''
+
 import sys, argparse, os, logging
 
 # Setup lib paths
@@ -38,7 +46,7 @@ def main():
 
 def argParser():
 
-    parser = argparse.ArgumentParser(description='Test the SQL Alchemy mapper')
+    parser = argparse.ArgumentParser(description='Update MicrobeDB from NCBI\'s ftp site')
     parser.add_argument('-c','--config', dest='config', help='Config file', required=True)
     parser.add_argument('-n','--noversion', action='store_true', default=False, dest='noversion', help='Don\'t create a new version, use the latest', required=False)
 

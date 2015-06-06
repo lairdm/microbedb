@@ -1,3 +1,6 @@
+# This can be copied in to the etc directory with
+# your appropriate local values
+
 ncbi_ftp: 'ftp.ncbi.nlm.nih.gov'
 ncbi_rootdir: '/genomes/refseq/bacteria/'
 db_host: 'localhost'
@@ -6,4 +9,4 @@ db_user: 'microbedb'
 db_password: 'mdbpassword'
 basedir: '/data/ncbi_genomes/'
 
-logger_cfg: '/home/lairdm/microbedb/etc/logging.json'
+logger_cfg: '/software/microbedb/etc/logging.json'

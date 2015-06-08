@@ -25,6 +25,7 @@ class Replicon(Base):
     gpv_id = Column(Integer)
     version_id = Column(Integer)
     rep_accnum = Column(String(14), nullable=False)
+    rep_version = Column(Integer, default=1)
     definition = Column(Text)
     rep_type = Column(Enum('chromosome', 'plasmid', 'contig'))
     rep_ginum = Column(String(24))
@@ -46,9 +47,12 @@ class Replicon(Base):
 
         try:
             logger.debug("Creating Replicon, gpv_id: {}, accnum: {}, assembly_accession: {}".format(gp.gpv_id, record.id, gp.assembly_accession))
+            accnum, rep_version = record.id.split(".")
+
             rep = Replicon(gpv_id=gp.gpv_id,
                            version_id=Version.fetch(version),
-                           rep_accnum=record.id,
+                           rep_accnum=accnum,
+                           rep_version = rep_version,
                            definition=record.description,
                            file_name = "{}_{}".format(gp.assembly_accession, gp.asm_name))
 

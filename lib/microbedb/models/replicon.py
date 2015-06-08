@@ -35,7 +35,7 @@ class Replicon(Base):
     rna_num = Column(Integer)
 
     def __str__(self):
-        return "Replicon(): rpv_id: {}, gpv_id {}, version: {}".format(self.rpv_id, self.gpv_id, self.version_id)
+        return "Replicon(): rpv_id: {}, gpv_id {}, version: {}, rep_accnum: {}".format(self.rpv_id, self.gpv_id, self.version_id, self.rep_accnum)
 
     @classmethod
     def create_from_genbank(cls, gp, record, version='latest'):
@@ -77,6 +77,7 @@ class Replicon(Base):
             rep.rep_type = find_replicon_type(record.description)
             logger.debug("We think this replicon is of type {}".format(rep.rep_type))
 
+            logger.debug("Committing: " + str(rep))
             session.add(rep)
             session.commit()
 

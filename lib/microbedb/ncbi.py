@@ -57,6 +57,7 @@ class ncbi_fetcher():
     def process_remote_directory(self, genomedir):
         
         assembly_lines = []
+        self.logger.debug("Processing genome directory {}".format(genomedir))
 
         try:
             self.logger.debug("Fetching genome summary file {}/assembly_summary.txt".format(genomedir))
@@ -70,7 +71,6 @@ class ncbi_fetcher():
             self.logger.exception("Perm FTP error: " + str(e))
         except Exception as e:
             self.logger.exception("Unknown exception: " + str(e))
-            print e
 
 
     #
@@ -164,6 +164,7 @@ class ncbi_fetcher():
 
             # Now that we should have the files, process and load
             # the replicons
+            self.logger.info("Parsing genbank file for gp {}".format(gp.gpv_id))
             self.parse_replicons(gp)
 
             try:
@@ -251,8 +252,6 @@ class ncbi_fetcher():
                 session.rollback()
                 raise e
 
-        self.logger.info("Parsing genbank file for gp {}".format(gp.gpv_id))
-        self.parse_replicons(gp)
 
     def parse_replicons(self, gp):
 

@@ -178,9 +178,7 @@ class Replicon(Base):
                     logger.debug("Found our record for {}".format(accnum))
                     record = r
                     break
-                print dir(r)
-                print r.id
-
+ 
         if not record:
             logger.critical("We didn't find our record for Replicon {} in genbankfile {}".format(self.rpv_id, self.genbank_file))
             return False

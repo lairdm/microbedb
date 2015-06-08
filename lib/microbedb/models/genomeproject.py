@@ -55,6 +55,7 @@ class GenomeProject(Base):
     gpv_directory = Column(Text)
     file_types = Column(Text)
     prev_gpv = Column(Integer)
+    replicons = relationship("Replicon", backref='genomeproject')
 
     def __str__(self):
         return "GenomeProject(): gpv_id {}, genome: {}/{}_{}, version: {}".format(self.gpv_id, self.genome_name, self.assembly_accession, self.asm_name, self.version_id)

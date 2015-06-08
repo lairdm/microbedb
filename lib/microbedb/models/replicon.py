@@ -8,6 +8,7 @@ associated with a GenomeProject.
 import os
 import re
 import logging
+from Bio import SeqIO
 from . import Base, fetch_session
 from .version import Version
 from sqlalchemy import Column, ForeignKey, Integer, String, Text, Date, Enum, Float, Boolean
@@ -22,7 +23,8 @@ logger = logging.getLogger(__name__)
 class Replicon(Base):
     __tablename__ = 'replicon'
     rpv_id = Column(Integer, primary_key=True)
-    gpv_id = Column(Integer)
+    gpv_id = Column(ForeignKey('genomeproject.gpv_id'))
+#    gpv_id = Column(Integer)
     version_id = Column(Integer)
     rep_accnum = Column(String(14), nullable=False)
     rep_version = Column(Integer, default=1)
@@ -143,6 +145,74 @@ class Replicon(Base):
             logger.exception("Unknown error creating Replicon: " + str(e))
             return None
 
+
+    '''
+    This might not be the most efficient way, but it's the cleanest
+    from a maintainability.  Parse through the genbank file, file all
+    the CDS records associated with this replicon, then parse through the
+    faa file and write out our records to a separate file given by the 
+    the filename option
+    '''
+    def write_faa(self, filename):
+        global logger
+
+        gp = self.genomeproject
+        if not gp:
+            logger.critical("Why can't we find our genome project for Replicon: " + str(self))
+            return False
+
+        genbank_file = os.path.join(gp.gpv_directory, self.file_name) + '_genomic.gbff'
+        logger.debug("Parsing genbank file {}".format(genbank_file))
+
+        if not os.path.exists(genbank_file):
+            logger.critical("Why don't we have a genbank file for Replicon: " + str(self))
+            return False
+
+        # Parse the genbank file and for each replicon in it
+        # find ourself
+        record = None
+        with open(genbank_file, 'rU') as infile:
+            for r in SeqIO.parse(infile, "genbank"):
+                accnum, version = r.id.split(".")
+                if accnum == self.rep_accnum:
+                    logger.debug("Found our record for {}".format(accnum))
+                    record = r
+                    break
+                print dir(r)
+                print r.id
+
+        if not record:
+            logger.critical("We didn't find our record for Replicon {} in genbankfile {}".format(self.rpv_id, self.genbank_file))
+            return False
+
+        # By this point we should have the genbank record, now we need to remember all
+        # the CDS record identifiers
+        proteins = list()
+        for feat in record.features:
+            if feat.type == 'CDS':
+                if 'protein_id' in feat.qualifiers:
+                    # Because they're lists
+                    for p in feat.qualifiers['protein_id']:
+                        proteins.append(p)
+
+        # We now have a list of all the protein ids, we're going to go through the 
+        # faa file and make our new faa file containing only these records
+        fasta_file = os.path.join(gp.gpv_directory, self.file_name) + '_protein.faa'
+        if os.path.exists(fasta_file):
+            logger.debug("Parsing fasta file {}".format(fasta_file))
+        else:
+            logger.critical("Fasta file doesn't seem to exist! {}".format(fasta_file))
+            return False
+
+        with open(fasta_file, 'rU') as infile:
+            with open(filename, 'w') as outfile:
+                input_iterator = SeqIO.parse(infile, 'fasta')
+                filtered_seqs = (record for record in input_iterator \
+                                 if record.id in proteins)
+
+                SeqIO.write(filtered_seqs, outfile, 'fasta')
+
+        return True
 
     '''
     Remove the replicon from the database

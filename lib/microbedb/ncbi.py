@@ -273,6 +273,12 @@ class ncbi_fetcher():
             with open(genbank_file, 'rU') as infile:
                 for record in SeqIO.parse(infile, "genbank"):
                     rep = Replicon.create_from_genbank(gp, record)
+
+                    # We're going to need per-relicon faa files for various
+                    # analysis pipelines, make them now
+                    rep_faa_file = os.path.join(gp.gpv_directory, rep.rep_accnum) + '.faa'
+                    rep.write_faa(rep_faa_file)
+
                     type_count[rep.rep_type+"_num"] += 1
 
             self.logger.debug("Updating GP with rep_types: " + str(type_count))

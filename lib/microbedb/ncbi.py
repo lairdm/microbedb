@@ -14,6 +14,7 @@ from Bio import SeqIO
 import os.path
 from urlparse import urlparse
 import microbedb.config_singleton
+from microbedb.fileutils import find_extensions
 from .models import *
 import pprint
 
@@ -33,6 +34,32 @@ class ncbi_fetcher():
 
     def __str__(self):
         return "ncbi_fetcher()"
+        
+
+    def check_and_reconnect(self):
+        retry = 5
+
+        if not getattr(self, 'ftp') and not self.ftp:
+            return False
+
+        while(retry):
+
+            try:
+                self.ftp.voidcmd("NOOP")
+
+                return True
+
+            except IOError as e:
+                self.logger.exception("No ftp connection, reconnecting")
+
+            except Exception as e:
+                self.logger.exception("Unknown exception in ftp connection")
+
+            self.ftp = ftplib.FTP(self.cfg.ncbi_ftp)
+            retry = retry - 1
+
+        return False
+        
 
     '''
     Fetch the root directory of NCBI's prokaryotic
@@ -46,6 +73,12 @@ class ncbi_fetcher():
 
         for file in files:
             self.logger.info("Processing remote directory: {}".format(file))
+
+            # Check the connection to the ftp server and reconnect
+            if not self.check_and_reconnect():
+                logger.critical("We can't seem to connect to the ftp server, aborting")
+                sys.exit(1)
+
             self.process_remote_directory(file)
 
             
@@ -167,6 +200,8 @@ class ncbi_fetcher():
             self.logger.info("Parsing genbank file for gp {}".format(gp.gpv_id))
             self.parse_replicons(gp)
 
+'''
+remove finding file types at this point
             try:
                 # Go find all the file extensions in
                 # the directory structure and record them
@@ -178,7 +213,7 @@ class ncbi_fetcher():
 
             except Exception as e:
                 self.logger.exception("Error fetching file types for gpv_id {}".format(gp.gpv_id))
-                
+'''                
         # Nothing changed in this genome so just clone everything and
         # make the needed symlinks
         else:
@@ -252,6 +287,14 @@ class ncbi_fetcher():
                 session.rollback()
                 raise e
 
+        # We're going to make assumptions about the filename, simply
+        # because we know how an ncbi root filename looks
+        gp.filename = "{}_{}".format(gp.assembly_accession, gp.asm_name)
+        file_types = find_extensions(gp.gpv_directory, gp.filename)
+        if file_types:
+            gp.file_types = file_types
+        if not gp.commit():
+            logger.critical("We had trouble committing the filename for GP: " + str(gp))
 
     def parse_replicons(self, gp):
 

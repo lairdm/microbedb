@@ -53,6 +53,7 @@ class GenomeProject(Base):
     submitter = Column(Text)
     release_date = Column(Date)
     gpv_directory = Column(Text)
+    filename = Column(String(50))
     file_types = Column(Text)
     prev_gpv = Column(Integer)
     replicons = relationship("Replicon", backref='genomeproject')

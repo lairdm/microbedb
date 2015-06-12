@@ -48,7 +48,7 @@ def separate_genbank(genbank_file, fna_file, rep_accnum, path):
     logger.info("Separating genbank file {} based on accnum {}, writing to {}".format(genbank_file, rep_accnum, path))
 
     if not os.path.exists(genbank_file):
-        logger.critical("Genbank file {} doesn't exist".format(genbank))
+        logger.critical("Genbank file {} doesn't exist".format(genbank_file))
         return False
 
     # Parse the genbank file and for each replicon in it
@@ -99,6 +99,7 @@ def separate_genbank(genbank_file, fna_file, rep_accnum, path):
     # for our second loop for the ffn file
     proteins = dict()
     faa_records = []
+    ptt_records = []
     organism = None
     if 'organism' in record.annotations:
         organism = record.annotations['organism']
@@ -106,17 +107,43 @@ def separate_genbank(genbank_file, fna_file, rep_accnum, path):
         organism = record.annotations['source']
     for feat in record.features:
         if feat.type == 'CDS':
+            coords = str(feat.location.start+1) + ".." + str(feat.location.end)
+            nuc_seq = feat.qualifiers['translation'][0]
+
             id_str = []
+            strand_str = '-' if feat.location.strand == -1 else '+'
+            ptt_pieces = [coords, strand_str, str(len(nuc_seq))]
             if 'db_xref' in feat.qualifiers:
                 gi = find_xref(feat.qualifiers['db_xref'])
                 if gi:
                     id_str.append("gi|{}".format(gi))
+                    ptt_pieces.append(gi)
+                else:
+                    ptt_pieces.append('-')
+            else:
+                ptt_pieces.append('-')
+
+            if 'gene' in feat.qualifiers:
+                ptt_pieces.append(feat.qualifiers['gene'][0])
+            else:
+                ptt_pieces.append('-')
+
             if 'protein_id' in feat.qualifiers:
                 for pid in feat.qualifiers['protein_id']:
                     id_str.append("ref|{}".format(pid))
+                
             if 'locus_tag' in feat.qualifiers:
                 for locus in feat.qualifiers['locus_tag']:
                     id_str.append("locus|{}".format(locus))
+                ptt_pieces.append(feat.qualifiers['locus_tag'][0])
+            else:
+                ptt_pieces.append('-')
+
+            # And pad out the final three fields in the ptt line
+            ptt_pieces.append('-')
+            ptt_pieces.append('-')
+            ptt_pieces.append(feat.qualifiers['product'][0])
+            ptt_records.append("\t".join(ptt_pieces))
 
             # Build the faa header description piece
             description = feat.qualifiers['product'][0]
@@ -124,7 +151,7 @@ def separate_genbank(genbank_file, fna_file, rep_accnum, path):
                 description += " [{}]".format(organism)
 
             # Make the sequence object now that we have the identifier built
-            seqreq = SeqRecord(Seq(feat.qualifiers['translation'][0], generic_protein),
+            seqreq = SeqRecord(Seq(nuc_seq, generic_protein),
                                id="|".join(id_str),
                                description=description)
             # We should have a sequence now, append it for writing since
@@ -133,7 +160,6 @@ def separate_genbank(genbank_file, fna_file, rep_accnum, path):
 
             # And save the information about the protein for when we 
             # circle around doing the genes for the ffn file
-            coords = str(feat.location.start+1) + ".." + str(feat.location.end)
             proteins[coords] = id_str
 
     # Write out the faa records to the file
@@ -142,6 +168,14 @@ def separate_genbank(genbank_file, fna_file, rep_accnum, path):
 
     # And clear the faa records to save memory
     faa_records = None
+
+    # Write out the ptt records to the file
+    with open(os.path.join(path, rep_accnum) + '.ptt', 'w') as outfile:
+        outfile.write("{} - 1..{}\n".format(record.description, len(record.seq)))
+        outfile.write("{} proteins\n".format(str(len(ptt_records))))
+        outfile.write("\t".join(['Location', 'Strand', 'Length', 'PID', 'Gene', 'Synonym', 'Code', 'COG', 'Product']) + "\n")
+        for ptt in ptt_records:
+            outfile.write("{}\n".format(ptt))
 
     # Loop again looking for genes
     ffn_records = []

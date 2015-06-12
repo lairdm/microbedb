@@ -15,6 +15,7 @@ import os.path
 from urlparse import urlparse
 import microbedb.config_singleton
 from microbedb.fileutils import find_extensions
+from microbedb.fileutils import separate_genbank
 from .models import *
 import pprint
 
@@ -200,20 +201,6 @@ class ncbi_fetcher():
             self.logger.info("Parsing genbank file for gp {}".format(gp.gpv_id))
             self.parse_replicons(gp)
 
-'''
-remove finding file types at this point
-            try:
-                # Go find all the file extensions in
-                # the directory structure and record them
-                exts = GenomeProject.find_extensions(gp.gpv_id, gp=gp)
-                if exts:
-                    gp.file_types = ' '.join(exts)
-                    self.logger.debug("Commiting extensions for gpv_id {}: {}".format(gp.gpv_id, gp.file_types))
-                    gp.commit()
-
-            except Exception as e:
-                self.logger.exception("Error fetching file types for gpv_id {}".format(gp.gpv_id))
-'''                
         # Nothing changed in this genome so just clone everything and
         # make the needed symlinks
         else:
@@ -294,7 +281,7 @@ remove finding file types at this point
         if file_types:
             gp.file_types = file_types
         if not gp.commit():
-            logger.critical("We had trouble committing the filename for GP: " + str(gp))
+            self.logger.critical("We had trouble committing the filename for GP: " + str(gp))
 
     def parse_replicons(self, gp):
 
@@ -317,10 +304,19 @@ remove finding file types at this point
                 for record in SeqIO.parse(infile, "genbank"):
                     rep = Replicon.create_from_genbank(gp, record)
 
-                    # We're going to need per-relicon faa files for various
-                    # analysis pipelines, make them now
-                    rep_faa_file = os.path.join(gp.gpv_directory, rep.rep_accnum) + '.faa'
-                    rep.write_faa(rep_faa_file)
+                    # And finally try to make all the per replicon files
+                    separate_genbank(os.path.join(rep.genomeproject.gpv_directory, rep.genomeproject.filename) +  '_genomic.gbff',
+                                     os.path.join(rep.genomeproject.gpv_directory, rep.genomeproject.filename) +  '_genomic.fna',
+                                     rep.rep_accnum,
+                                     rep.genomeproject.gpv_directory)
+
+                    # Find all the file types for the replicon
+                    file_types = find_extensions(rep.genomeproject.gpv_directory, rep.file_name)
+                    if file_types:
+                        rep.file_types = file_types
+
+                    if not rep.commit():
+                        self.logger.critical("We couldn't commit changes to Rep " + str(rep))
 
                     type_count[rep.rep_type+"_num"] += 1
 

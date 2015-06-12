@@ -32,6 +32,7 @@ class Replicon(Base):
     rep_type = Column(Enum('chromosome', 'plasmid', 'contig'))
     rep_ginum = Column(String(24))
     file_name = Column(Text)
+    file_types = Column(Text)
     cds_num = Column(Integer)
     gene_num = Column(Integer)
     rep_size = Column(Integer)
@@ -56,7 +57,7 @@ class Replicon(Base):
                            rep_accnum=accnum,
                            rep_version = rep_version,
                            definition=record.description,
-                           file_name = "{}_{}".format(gp.assembly_accession, gp.asm_name))
+                           file_name = accnum)
 
             if 'gi' in record.annotations:
                 rep.rep_ginum = record.annotations['gi']
@@ -145,6 +146,28 @@ class Replicon(Base):
             logger.exception("Unknown error creating Replicon: " + str(e))
             return None
 
+    '''
+    For when we pass a Replicon object around, we need a way
+    to commit the changes
+
+    If successful return True, if commit fails return False
+    '''
+    def commit(self):
+        global logger
+        logger.debug("Committing changes to self")
+
+        session = fetch_session()
+
+        try:
+            session.add(self)
+            session.commit()
+
+            return True
+
+        except Exception as e:
+            logger.exception("Error commiting our changes")
+            session.rollback()
+            return False
 
     '''
     This might not be the most efficient way, but it's the cleanest

@@ -56,7 +56,10 @@ class ncbi_fetcher():
             except Exception as e:
                 self.logger.exception("Unknown exception in ftp connection")
 
+            self.logger.info("Reconnecting to ftp server")
             self.ftp = ftplib.FTP(self.cfg.ncbi_ftp)
+            self.ftp.login()
+            self.ftp.cwd(self.cfg.ncbi_rootdir)
             retry = retry - 1
 
         return False
@@ -95,6 +98,7 @@ class ncbi_fetcher():
 
         try:
             self.logger.debug("Fetching genome summary file {}/assembly_summary.txt".format(genomedir))
+
             self.ftp.retrlines("RETR {}/assembly_summary.txt".format(genomedir), assembly_lines.append)
 
             for line in assembly_lines:

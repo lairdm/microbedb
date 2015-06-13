@@ -108,11 +108,11 @@ def separate_genbank(genbank_file, fna_file, rep_accnum, path):
     for feat in record.features:
         if feat.type == 'CDS':
             coords = str(feat.location.start+1) + ".." + str(feat.location.end)
-            nuc_seq = feat.qualifiers['translation'][0]
+            prot_seq = feat.qualifiers['translation'][0]
 
             id_str = []
             strand_str = '-' if feat.location.strand == -1 else '+'
-            ptt_pieces = [coords, strand_str, str(len(nuc_seq))]
+            ptt_pieces = [coords, strand_str, str(len(prot_seq))]
             if 'db_xref' in feat.qualifiers:
                 gi = find_xref(feat.qualifiers['db_xref'])
                 if gi:
@@ -151,7 +151,7 @@ def separate_genbank(genbank_file, fna_file, rep_accnum, path):
                 description += " [{}]".format(organism)
 
             # Make the sequence object now that we have the identifier built
-            seqreq = SeqRecord(Seq(nuc_seq, generic_protein),
+            seqreq = SeqRecord(Seq(prot_seq, generic_protein),
                                id="|".join(id_str),
                                description=description)
             # We should have a sequence now, append it for writing since

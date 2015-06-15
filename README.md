@@ -10,6 +10,8 @@ MicrobeDB v2 is a slimmed down version of the original without the API to access
 
 What MicrobeDB v2 still does provide is a local mirror of NCBI's set of completed genomes, based on the new directory structure released in 2014.  It provides versioning of mirror sets, and attempts to reduce disk usage by using the md5 checksums provided by NCBI to only download a new version of a genome if it has changed between runs of the MicrobeDB update script.  If a genome has not changed a symlink will be used to point to the first download of a particular genome version.
 
+In addition, per replicon, a gbk, faa and ffn file are generated, named with the refseq accession for that replicon.
+
 REQUIREMENTS
 ============
 

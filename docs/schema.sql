@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS `genomeproject` (
 --
 
 CREATE TABLE IF NOT EXISTS `genomeproject_checksum` (
-  `version` int(10) unsigned NOT NULL,
+  `version_id` int(10) unsigned NOT NULL,
   `filename` varchar(64) CHARACTER SET latin1 NOT NULL DEFAULT '',
   `checksum` varchar(32) CHARACTER SET latin1 DEFAULT NULL,
   `gpv_id` int(11) NOT NULL,

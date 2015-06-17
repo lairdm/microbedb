@@ -563,9 +563,9 @@ class GenomeProject_Checksum(Base):
         # Special case since version can be passed in as a string
         # such as 'latest' or 'current'
         if 'version_id' in kwargs:
-            kwargs['version'] = Version.fetch(kwargs['version_id'])
+            kwargs['version_id'] = Version.fetch(kwargs['version_id'])
         elif 'version' in kwargs:
-            kwargs['version'] = Version.fetch(kwargs['version'])
+            kwargs['version_id'] = Version.fetch(kwargs['version'])
 
         try:
             # Create a GP_Checksum object and begin copying fields
@@ -607,7 +607,7 @@ class GenomeProject_Checksum(Base):
 
         # Try to fetch the GenomeProject if it exists
         try:
-            gpcs = session.query(GenomeProject_Checksum).filter(GenomeProject_Checksum.version == version,
+            gpcs = session.query(GenomeProject_Checksum).filter(GenomeProject_Checksum.version_id == version,
                                                                 GenomeProject_Checksum.filename == filename).first()
         
             # We found a checksum for this file, return if they match

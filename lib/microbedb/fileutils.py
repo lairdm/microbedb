@@ -82,7 +82,7 @@ def separate_genbank(genbank_file, fna_file, rep_accnum, path):
         return False
 
     # Put the sequence in to the genbank record
-    record.seq = seq_record.seq
+    record.seq = seq_record.seq    
 
     if not os.path.exists(path):
         logger.critical("We don't seem to have the path we want to write the files to: {}".format(path))
@@ -90,6 +90,10 @@ def separate_genbank(genbank_file, fna_file, rep_accnum, path):
     # Now we write out the separate files, let's start with the genbank
     with open(os.path.join(path, rep_accnum) + '.gbk', 'w') as outfile:
         SeqIO.write(record, outfile, 'genbank')
+
+    # And while we're here, make the fna file for the replicon
+    with open(os.path.join(path, rep_accnum) + '.fna', 'w') as outfile:
+        SeqIO.write(seq_record, outfile, 'fasta')
 
     # Next let's make the ffn and faa files
     # We're going to have to loop through twice either way,

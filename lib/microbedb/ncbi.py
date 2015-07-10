@@ -257,7 +257,7 @@ class ncbi_fetcher():
                 # Insert the checksum
                 gpcs = GenomeProject_Checksum(filename=filename, 
                                               checksum=md5, 
-                                              version=Version.fetch("latest"),
+                                              version_id=Version.fetch("latest"),
                                               gpv_id=gp.gpv_id)
 
                 session.add(gpcs)

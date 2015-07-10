@@ -540,7 +540,7 @@ class GenomeProject_Meta(Base):
 class GenomeProject_Checksum(Base):
     __tablename__ = 'genomeproject_checksum'
 #    gpv_id = Column(Integer, primary_key=True)
-    version = Column(Integer, primary_key=True)
+    version_id = Column(Integer, primary_key=True)
     filename = Column(String(24), primary_key=True)
     checksum = Column(String(32))
     gpv_id = Column(Integer)

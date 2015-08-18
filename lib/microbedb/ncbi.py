@@ -125,8 +125,8 @@ class ncbi_fetcher():
         # Split the line in to it's fields
         assembly = self.map_summary(line)
 
-        # We're only interested in complete genomes
-        if assembly['assembly_level'] != 'Complete Genome':
+        # We're only interested in complete genomes or reference genomes
+        if assembly['assembly_level'] != 'Complete Genome' and assembly['refseq_category'] != 'reference genome':
             return
 
         self.logger.info("Found complete genome: " + str(assembly))
@@ -352,7 +352,7 @@ class ncbi_fetcher():
             'bioproject': pieces[1],
             'biosample': pieces[2],
             'wgs_master': pieces[3],
-            'refseq_category_taxid': pieces[4],
+            'refseq_category': pieces[4],
             'taxid': pieces[5],
             'species_taxid': pieces[6],
             'org_name': pieces[7],

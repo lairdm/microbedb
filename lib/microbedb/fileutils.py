@@ -112,6 +112,10 @@ def separate_genbank(genbank_file, fna_file, rep_accnum, path):
     for feat in record.features:
         if feat.type == 'CDS':
             coords = str(feat.location.start+1) + ".." + str(feat.location.end)
+            if 'translation' not in feat.qualifiers:
+                logger.debug("No translation for feature at coords {}".format(coords))
+                continue
+
             prot_seq = feat.qualifiers['translation'][0]
 
             id_str = []

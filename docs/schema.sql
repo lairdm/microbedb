@@ -32,8 +32,8 @@ CREATE TABLE IF NOT EXISTS `gene` (
 
 CREATE TABLE IF NOT EXISTS `genomeproject` (
   `gpv_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `assembly_accession` varchar(16) CHARACTER SET latin1 NOT NULL,
-  `asm_name` varchar(12) CHARACTER SET latin1 NOT NULL,
+  `assembly_accession` varchar(20) CHARACTER SET latin1 NOT NULL,
+  `asm_name` varchar(24) CHARACTER SET latin1 NOT NULL,
   `genome_name` text COLLATE utf8_unicode_ci NOT NULL,
   `version_id` int(10) unsigned DEFAULT '0',
   `bioproject` varchar(14) CHARACTER SET latin1 DEFAULT NULL,
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS `genomeproject` (
   `submitter` text CHARACTER SET latin1,
   `release_date` date DEFAULT NULL,
   `gpv_directory` text CHARACTER SET latin1,
-  `filename` varchar(50) DEFAULT NULL,
+  `filename` varchar(75) DEFAULT NULL,
   `file_types` text COLLATE utf8_unicode_ci,
   `prev_gpv` int(11) DEFAULT NULL,
   PRIMARY KEY (`gpv_id`),

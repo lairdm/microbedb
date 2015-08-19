@@ -131,8 +131,13 @@ class ncbi_fetcher():
 
         self.logger.info("Found complete genome: " + str(assembly))
 
-        self.process_genome(genomedir,
-                            assembly)
+        # We don't want things to fail out for just one line in the summary failing
+        try:
+            self.process_genome(genomedir,
+                                assembly)
+
+        except Exception as e:
+            self.logger.exception("Error processing genome {}".format(line))
 
     #
     # We have a genome we know is complete,

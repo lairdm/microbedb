@@ -160,7 +160,7 @@ class ncbi_fetcher():
 
         # Remove all paths that have a slash in them, we don't
         # want files that aren't in the root path
-        checksum = [cs for cs in checksum if '/' not in cs]
+        checksums = [cs for cs in checksums if '/' not in cs]
 
         # See if we have this genome in the current version of the
         # database already

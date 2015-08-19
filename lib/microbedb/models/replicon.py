@@ -269,9 +269,11 @@ class Replicon(Base):
 # We're going to be a little strict, if we can't figure out what
 # it is, we're going to say contig
 #
-def find_replicon_type(desc):
+def find_replicon_type(record):
     global logger
-    logger.debug("Testing description for genome type: {}".format(desc))
+    logger.debug("Testing description for genome type: {}".format(record.description))
+
+    desc = record.description
 
     # Convert to lower case
     desc = desc.lower()
@@ -284,5 +286,22 @@ def find_replicon_type(desc):
         return 'chromosome'
     elif re.search('chromosome', desc):
         return 'chromosome'
+
+    # Check the keywods in case the description
+    # is missing these magic keywords for type
+    try:
+        keywords = record.keywords.lower()
+
+        if re.search('plasmid', keywords):
+            return 'plasmid'
+        elif re.search('complete genome', keywords):
+            return 'chromosome'
+        elif re.search('complete sequence', keywords):
+            return 'chromosome'
+        elif re.search('chromosome', keywords):
+            return 'chromosome'
+
+    except:
+        pass
 
     return 'contig'

@@ -100,6 +100,8 @@ class Version(Base):
     '''
     @classmethod
     def fetch(cls, version):
+        global logger
+        logger.debug("Version.fetch: {}".format(version))
 
         if version == 'current':
             version = Version.current()

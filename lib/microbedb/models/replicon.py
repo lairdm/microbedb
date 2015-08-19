@@ -81,7 +81,7 @@ class Replicon(Base):
             rep.rep_size = len(record.seq)
             logger.debug("Replicon features, genes: {}, CDS: {}, RNA: {}, size: {}".format(gene, CDS, rna, rep.rep_size))
 
-            rep.rep_type = find_replicon_type(record.description)
+            rep.rep_type = find_replicon_type(record)
             logger.debug("We think this replicon is of type {}".format(rep.rep_type))
 
             logger.debug("Committing: " + str(rep))

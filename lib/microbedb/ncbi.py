@@ -158,6 +158,10 @@ class ncbi_fetcher():
         self.logger.debug("RETR checksum file {}".format(summary_url))
         self.ftp.retrlines("RETR {}".format(summary_url), checksums.append)
 
+        # Remove all paths that have a slash in them, we don't
+        # want files that aren't in the root path
+        checksum = [cs for cs in checksum if '/' not in cs]
+
         # See if we have this genome in the current version of the
         # database already
         gp = GenomeProject.find(**assembly)

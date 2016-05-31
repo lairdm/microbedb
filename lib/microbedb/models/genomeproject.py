@@ -546,7 +546,7 @@ class GenomeProject_Checksum(Base):
     gpv_id = Column(Integer)
 
     def __str__(self):
-        return "GenomeProject_Checksum(): gpv_id {}, version: {}, filename: {}".format(self.gpv_id, self.version, self.filename)
+        return "GenomeProject_Checksum(): gpv_id {}, version: {}, filename: {}".format(self.gpv_id, self.version_id, self.filename)
 
     '''
     Create a GP_Checksum object based on the kwargs
@@ -556,7 +556,7 @@ class GenomeProject_Checksum(Base):
     '''
     def copy_and_update(self, **kwargs):
         global logger
-        logger.info("Copy and update GP_Checksum file: {}, version: {}".format(self.filename, self.version))
+        logger.info("Copy and update GP_Checksum file: {}, version: {}".format(self.filename, self.version_id))
 
         session = fetch_session()
         

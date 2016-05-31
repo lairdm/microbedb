@@ -176,6 +176,10 @@ class ncbi_fetcher():
             self.logger.debug("Examining checksum file line: {}".format(line))
             filename, md5 = self.separate_md5line(line)
 
+            if 'annotation_hashes.txt' in filename:
+                self.logger.debug("Found annotation.txt file, moving on to the next line")
+                continue
+
             # If the checksum if different (or wasn't found) we know the genome
             # has changed and we'll have tp update it
             if not GenomeProject_Checksum.verify(filename, md5):
@@ -255,6 +259,10 @@ class ncbi_fetcher():
             
         for line in checksums:
             filename, md5 = self.separate_md5line(line)
+
+            if 'annotation_hashes.txt' in filename:
+                self.logger.debug("Found annotation.txt file, we don't download those")
+                continue
 
             try:
                 # Retreive the genome file from ncbi

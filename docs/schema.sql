@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS `genomeproject_checksum` (
   `filename` varchar(64) CHARACTER SET latin1 NOT NULL DEFAULT '',
   `checksum` varchar(32) CHARACTER SET latin1 DEFAULT NULL,
   `gpv_id` int(11) NOT NULL,
-  PRIMARY KEY (`version`,`filename`)
+  PRIMARY KEY (`version_id`,`filename`)
 ) DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 
 --

@@ -26,7 +26,7 @@ REQUIREMENTS
   * config
   * requests
 
-* ~20GB of hard drive space per mirror/version of the NCBI dataset.
+* ~200GB of hard drive space per mirror/version of the NCBI dataset.
 
 Installation
 ============

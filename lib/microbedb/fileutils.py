@@ -199,7 +199,6 @@ def separate_genbank(genbank_file, fna_file, rep_accnum, path):
 
             if feat.location.strand == -1:
                 id_str.append(":c{}".format(coords))
-                ffn_seq = ffn_seq.reverse_complement()
             else:
                 id_str.append(":{}".format(coords))
 

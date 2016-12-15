@@ -280,15 +280,17 @@ class ncbi_fetcher():
                 session.add(gpcs)
                 session.commit()
 
-                # Unzip the file
-                with gzip.open(local_filename, 'rb') as infile:
-                    with open(local_filename[:-3], 'w') as outfile:
-                        for line in infile:
-                            outfile.write(line)
+                if local_filename[-2:] == 'gz':
+                    self.logger.debug("Gzipped file, unzipping {}".format(local_filename))
+                    # Unzip the file
+                    with gzip.open(local_filename, 'rb') as infile:
+                        with open(local_filename[:-3], 'w') as outfile:
+                            for line in infile:
+                                outfile.write(line)
                 
-                # Remove the gzip files
-                if os.path.exists(local_filename):
-                    os.unlink(local_filename)
+                    # Remove the gzip files
+                    if os.path.exists(local_filename):
+                        os.unlink(local_filename)
 
             except Exception as e:
                 self.logger.exception("Exception inserting checksum for {}: ".format(filename))

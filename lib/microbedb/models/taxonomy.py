@@ -91,7 +91,7 @@ class Taxonomy(Base):
         global logger
 
         try:
-            server = "http://eutils.ncbi.nlm.nih.gov/"
+            server = "https://eutils.ncbi.nlm.nih.gov/"
             ext = "/entrez/eutils/efetch.fcgi?db=taxonomy&id={taxid}&report=xml&mode=text&email={email}&tool={tool}"
 
             req_str = server + ext.format(taxid=taxid, email=email, tool=tool)

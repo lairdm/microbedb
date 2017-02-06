@@ -146,7 +146,13 @@ def separate_genbank(genbank_file, fna_file, rep_accnum, path):
                 ptt_pieces.append(feat.qualifiers['locus_tag'][0])
             else:
                 ptt_pieces.append('-')
-
+            
+            # Finally append the coordinates
+            if feat.location.strand == -1:
+                id_str.append(":c{}".format(coords))
+            else:
+                id_str.append(":{}".format(coords))
+            
             # And pad out the final three fields in the ptt line
             ptt_pieces.append('-')
             ptt_pieces.append('-')
@@ -196,11 +202,6 @@ def separate_genbank(genbank_file, fna_file, rep_accnum, path):
 
             id_str = proteins[coords]
             ffn_seq = feat.extract(record.seq)
-
-            if feat.location.strand == -1:
-                id_str.append(":c{}".format(coords))
-            else:
-                id_str.append(":{}".format(coords))
 
             # Make the sequence object now that we have the identifier built
             seqreq = SeqRecord(ffn_seq,

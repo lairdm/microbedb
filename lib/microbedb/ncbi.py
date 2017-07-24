@@ -70,10 +70,14 @@ class ncbi_fetcher():
     genomes, for each send it for processing all the
     isolates within.
     '''
-    def sync_version(self):
+    def sync_version(self, test):
 
         # First we fetch all the files
         files = self.ftp.nlst()
+
+        if test!=0:
+            self.logger.info("We are testing MicrobeDBv2, only considering the first %s directories" % test)
+            files = files[:test]
 
         for file in files:
             self.logger.info("Processing remote directory: {}".format(file))

@@ -39,7 +39,7 @@ def main():
 
     fetcher = ncbi_fetcher()
 
-    fetcher.sync_version()
+    fetcher.sync_version(opts.test)
 
     # We're done so set the current microbedb version to the new current one
     Version.set_current(version)
@@ -49,6 +49,7 @@ def argParser():
     parser = argparse.ArgumentParser(description='Update MicrobeDB from NCBI\'s ftp site')
     parser.add_argument('-c','--config', dest='config', help='Config file', required=True)
     parser.add_argument('-n','--noversion', action='store_true', default=False, dest='noversion', help='Don\'t create a new version, use the latest', required=False)
+    parser.add_argument('-t','--test', type=int, default=0, help='To test MicrobeDBv2, number of directories to try downloading from NCBI bacterial genome ftp (typically 5-10)')
 
     return parser
 
